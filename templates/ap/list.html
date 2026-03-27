@@ -6,10 +6,15 @@
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-credit-card"></i> Accounts Payable</h2>
-        <div>
+        <div class="d-flex gap-2">
             <a href="{{ url_for('ap_routes.ap_dashboard') }}" class="btn btn-info">
                 <i class="bi bi-graph-up"></i> Dashboard
             </a>
+            {% if session.role in ['Admin', 'Accountant'] %}
+            <button class="btn btn-outline-success" id="syncAllBtn" onclick="syncAllAP()">
+                <i class="bi bi-cloud-upload me-1"></i> Sync All to QB
+            </button>
+            {% endif %}
             <a href="{{ url_for('ap_routes.export_ap') }}" class="btn btn-success">
                 <i class="bi bi-download"></i> Export CSV
             </a>
@@ -47,7 +52,7 @@
     <!-- Filter -->
     <div class="card mb-3">
         <div class="card-body">
-            <form method="GET" class="row g-3">
+            <form method="GET" class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label for="status" class="form-label">Status</label>
                     <select class="form-select" id="status" name="status" onchange="this.form.submit()">
@@ -61,12 +66,15 @@
         </div>
     </div>
 
+    <!-- Sync All result banner -->
+    <div id="syncAllResult" class="mb-3"></div>
+
     <!-- Payables Table -->
     <div class="card">
-        <div class="card-body">
+        <div class="card-body p-0">
             {% if payables %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>AP Number</th>
@@ -79,19 +87,20 @@
                             <th>Paid</th>
                             <th>Balance Due</th>
                             <th>Status</th>
+                            <th>QB Sync</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for ap in payables %}
-                        <tr>
+                        <tr id="ap-row-{{ ap.id }}">
                             <td><strong>{{ ap.invoice_number }}</strong></td>
                             <td>
                                 {% if ap.vendor_invoice_number %}
                                 <span class="text-dark">{{ ap.vendor_invoice_number }}</span>
                                 {% else %}
-                                <a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}" 
-                                   class="badge bg-warning text-dark text-decoration-none" 
+                                <a href="{{ url_for('ap_routes.view_ap', id=ap.id) }}"
+                                   class="badge bg-warning text-dark text-decoration-none"
                                    title="Click to enter vendor invoice number">
                                     <i class="bi bi-exclamation-circle"></i> Missing
                                 </a>
@@ -101,9 +110,7 @@
                             <td>
                                 {% if ap.po_number %}
                                 <a href="{{ url_for('po_routes.view_purchaseorder', id=ap.po_id) }}">{{ ap.po_number }}</a>
-                                {% else %}
-                                -
-                                {% endif %}
+                                {% else %}-{% endif %}
                             </td>
                             <td>{{ ap.invoice_date }}</td>
                             <td>
@@ -119,9 +126,18 @@
                                 {% if ap.status == 'Paid' %}
                                 <span class="badge bg-success">{{ ap.status }}</span>
                                 {% elif ap.status == 'Pending Invoice' %}
-                                <span class="badge bg-warning">{{ ap.status }}</span>
+                                <span class="badge bg-warning text-dark">{{ ap.status }}</span>
                                 {% else %}
                                 <span class="badge bg-info">{{ ap.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td id="qb-cell-{{ ap.id }}" style="min-width:130px;">
+                                {% if session.role in ['Admin', 'Accountant'] %}
+                                <span class="text-muted small qb-loading-indicator">
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                </span>
+                                {% else %}
+                                <span class="text-muted small">—</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -135,11 +151,153 @@
                 </table>
             </div>
             {% else %}
-            <div class="alert alert-info">
+            <div class="alert alert-info m-3">
                 <i class="bi bi-info-circle"></i> No accounts payable records found.
             </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+{% if session.role in ['Admin', 'Accountant'] %}
+<script>
+(function () {
+    // ── Load QB sync status for every row ──────────────────────────────────────
+    fetch('/api/qb/ap-sync-status')
+        .then(r => r.json())
+        .then(rows => {
+            const map = {};
+            rows.forEach(r => { map[r.id] = r; });
+
+            document.querySelectorAll('.qb-loading-indicator').forEach(el => {
+                const row   = el.closest('tr');
+                const apId  = parseInt(row.id.replace('ap-row-', ''));
+                const cell  = document.getElementById('qb-cell-' + apId);
+                const data  = map[apId];
+
+                if (!data) {
+                    cell.innerHTML = '<span class="text-muted small">—</span>';
+                    return;
+                }
+
+                if (data.qb_bill_id) {
+                    const billNum = data.qb_bill_number || data.qb_bill_id;
+                    cell.innerHTML = `
+                        <div class="d-flex flex-column gap-1">
+                            <span class="badge bg-success" title="QB Bill: ${billNum}">
+                                <i class="bi bi-check-circle me-1"></i>Synced
+                            </span>
+                            <button class="btn btn-xs btn-outline-secondary" style="font-size:0.7rem;padding:1px 5px;"
+                                    onclick="syncRow(${apId}, this)" title="Re-sync to QB">
+                                <i class="bi bi-arrow-repeat"></i> Re-sync
+                            </button>
+                        </div>`;
+                } else {
+                    cell.innerHTML = `
+                        <button class="btn btn-sm btn-outline-success" onclick="syncRow(${apId}, this)">
+                            <i class="bi bi-cloud-upload me-1"></i>Sync
+                        </button>`;
+                }
+            });
+        })
+        .catch(() => {
+            document.querySelectorAll('.qb-loading-indicator').forEach(el => {
+                el.closest('td').innerHTML = '<span class="text-muted small" title="QB not connected">—</span>';
+            });
+        });
+
+    // ── Sync a single row ──────────────────────────────────────────────────────
+    window.syncRow = function (apId, btn) {
+        const cell = document.getElementById('qb-cell-' + apId);
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        fetch(`/api/qb/sync-vendor-invoice/${apId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const billNum = data.qb_doc_number || data.qb_bill_id || '';
+                    cell.innerHTML = `
+                        <div class="d-flex flex-column gap-1">
+                            <span class="badge bg-success" title="QB Bill: ${billNum}">
+                                <i class="bi bi-check-circle me-1"></i>Synced
+                            </span>
+                            <button class="btn btn-xs btn-outline-secondary" style="font-size:0.7rem;padding:1px 5px;"
+                                    onclick="syncRow(${apId}, this)" title="Re-sync to QB">
+                                <i class="bi bi-arrow-repeat"></i> Re-sync
+                            </button>
+                        </div>`;
+                } else if (data.status === 'auth_expired') {
+                    cell.innerHTML = `<a href="/qb/dashboard" class="badge bg-warning text-dark text-decoration-none" title="Reconnect QB">
+                        <i class="bi bi-key"></i> Reconnect</a>`;
+                } else if (data.status === 'skipped') {
+                    cell.innerHTML = `<span class="badge bg-secondary" title="${data.reason || ''}">Skipped</span>`;
+                } else {
+                    const errMsg = (data.reason || 'Unknown error').substring(0, 120);
+                    cell.innerHTML = `
+                        <span class="badge bg-danger" title="${errMsg}">
+                            <i class="bi bi-x-circle me-1"></i>Failed
+                        </span>
+                        <button class="btn btn-xs btn-outline-danger mt-1" style="font-size:0.7rem;padding:1px 5px;"
+                                onclick="syncRow(${apId}, this)">
+                            <i class="bi bi-arrow-repeat"></i> Retry
+                        </button>`;
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+                alert('Sync error: ' + err);
+            });
+    };
+
+    // ── Sync all unsynced AP records ───────────────────────────────────────────
+    window.syncAllAP = function () {
+        const btn    = document.getElementById('syncAllBtn');
+        const banner = document.getElementById('syncAllResult');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Syncing…';
+        banner.innerHTML = '';
+
+        fetch('/api/qb/sync-ap/all', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i> Sync All to QB';
+
+                if (data.auth_expired) {
+                    banner.innerHTML = `<div class="alert alert-warning">
+                        <i class="bi bi-key me-1"></i>QB session expired.
+                        <a href="/qb/dashboard" class="ms-2 fw-bold">Reconnect QuickBooks</a>
+                    </div>`;
+                    return;
+                }
+
+                const synced  = data.synced  || 0;
+                const failed  = data.failed  || 0;
+                const skipped = data.skipped || 0;
+                let cls = synced > 0 ? 'success' : (failed > 0 ? 'danger' : 'info');
+                banner.innerHTML = `<div class="alert alert-${cls}">
+                    <i class="bi bi-cloud-upload me-1"></i>
+                    Sync complete — <strong>${synced}</strong> pushed to QB,
+                    <strong>${skipped}</strong> skipped,
+                    <strong>${failed}</strong> failed.
+                    ${failed > 0 ? '<a href="/qb/dashboard" class="ms-2">View error log</a>' : ''}
+                </div>`;
+
+                // Reload QB badges after bulk sync
+                if (synced > 0) {
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i> Sync All to QB';
+                banner.innerHTML = `<div class="alert alert-danger">Error: ${err}</div>`;
+            });
+    };
+})();
+</script>
+{% endif %}
 {% endblock %}
