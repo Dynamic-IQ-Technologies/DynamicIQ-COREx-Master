@@ -600,21 +600,18 @@ def initialize_application():
     db = Database()
     
     if db.use_postgres:
+        print("[App] Using PostgreSQL database - initializing schema...")
         try:
-            conn = db.get_connection()
-            result = conn.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
-            conn.close()
-            print("[App] Using PostgreSQL database")
-            # Seed data for PostgreSQL (if tables are empty)
-            db.seed_chart_of_accounts()
-            db.seed_unit_of_measure()
-            db.seed_qms_sop_categories()
+            db.init_db()
+            print("[App] PostgreSQL schema initialization complete")
         except Exception as e:
-            print("=" * 60)
-            print("PostgreSQL database not initialized!")
-            print("Please run: python scripts/init_postgres.py")
-            print("=" * 60)
-            raise SystemExit(f"Database not initialized: {e}")
+            import traceback
+            print(f"[App] WARNING: Schema initialization encountered an error: {e}")
+            print(f"[App] Traceback: {traceback.format_exc()}")
+            print("[App] Continuing startup - tables may already exist")
+        db.seed_chart_of_accounts()
+        db.seed_unit_of_measure()
+        db.seed_qms_sop_categories()
     else:
         print("[App] Using SQLite database")
         db.init_db()

@@ -45,6 +45,7 @@ class PostgresTranslatingCursor:
         self._cursor = cursor
         self._translate = translate_func
         self._lastrowid = None
+        self._pragma_results = None  # Stores results for PRAGMA emulation
     
     def _convert_row(self, row):
         """Convert Decimal values to float in a row dictionary"""
@@ -59,20 +60,122 @@ class PostgresTranslatingCursor:
                 converted[key] = value
         return converted
     
+    def _rollback_on_error(self):
+        """Rollback the connection to recover from a failed transaction"""
+        try:
+            self._cursor.connection.rollback()
+        except Exception:
+            pass
+    
     def execute(self, query, params=None):
-        query = self._translate(query)
-        query = query.replace('?', '%s')
+        import re
+        self._pragma_results = None
+        query_stripped = query.strip()
+        query_upper = query_stripped.upper()
+        
+        # --- PRAGMA table_info(X) → information_schema.columns query ---
+        pragma_ti_match = re.match(
+            r"PRAGMA\s+table_info\s*\(\s*['\"]?(\w+)['\"]?\s*\)",
+            query_stripped, re.IGNORECASE
+        )
+        if pragma_ti_match:
+            table_name = pragma_ti_match.group(1)
+            try:
+                self._cursor.execute(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = %s AND table_schema = 'public' "
+                    "ORDER BY ordinal_position",
+                    (table_name,)
+                )
+                raw_rows = self._cursor.fetchall()
+                # Emulate PRAGMA table_info tuple: (cid, name, type, notnull, dflt_value, pk)
+                # init_db() accesses col[1] for the column name
+                self._pragma_results = [
+                    (None, row['column_name'], None, None, None, None)
+                    for row in raw_rows
+                ]
+            except Exception:
+                self._rollback_on_error()
+                self._pragma_results = []
+            return self
+        
+        # --- PRAGMA foreign_keys = ON → no-op for PostgreSQL ---
+        if re.match(r"PRAGMA\s+foreign_keys", query_stripped, re.IGNORECASE):
+            self._pragma_results = []
+            return self
+        
+        # --- INSERT OR IGNORE INTO → INSERT INTO ... ON CONFLICT DO NOTHING ---
+        if re.match(r'\s*INSERT\s+OR\s+IGNORE\s+INTO\b', query_stripped, re.IGNORECASE):
+            query_stripped = re.sub(
+                r'\bINSERT\s+OR\s+IGNORE\s+INTO\b', 'INSERT INTO',
+                query_stripped, flags=re.IGNORECASE
+            )
+            query_stripped = self._translate(query_stripped)
+            query_stripped = query_stripped.replace('?', '%s')
+            # Strip any trailing semicolon
+            base = query_stripped.rstrip().rstrip(';')
+            if 'ON CONFLICT' not in base.upper():
+                base += ' ON CONFLICT DO NOTHING'
+            try:
+                if params:
+                    self._cursor.execute(base, params)
+                else:
+                    self._cursor.execute(base)
+            except Exception:
+                self._rollback_on_error()
+            return self
+        
+        # --- INSERT OR REPLACE / REPLACE INTO → INSERT INTO ... ON CONFLICT DO NOTHING ---
+        if re.match(r'\s*(INSERT\s+OR\s+REPLACE\s+INTO|REPLACE\s+INTO)\b', query_stripped, re.IGNORECASE):
+            query_stripped = re.sub(
+                r'\bINSERT\s+OR\s+REPLACE\s+INTO\b', 'INSERT INTO',
+                query_stripped, flags=re.IGNORECASE
+            )
+            query_stripped = re.sub(
+                r'\bREPLACE\s+INTO\b', 'INSERT INTO',
+                query_stripped, flags=re.IGNORECASE
+            )
+            query_stripped = self._translate(query_stripped)
+            query_stripped = query_stripped.replace('?', '%s')
+            base = query_stripped.rstrip().rstrip(';')
+            if 'ON CONFLICT' not in base.upper():
+                base += ' ON CONFLICT DO NOTHING'
+            try:
+                if params:
+                    self._cursor.execute(base, params)
+                else:
+                    self._cursor.execute(base)
+            except Exception:
+                self._rollback_on_error()
+            return self
+        
+        # --- ALTER TABLE ADD COLUMN → catch duplicate column errors silently ---
+        is_alter_add = 'ALTER TABLE' in query_upper and 'ADD COLUMN' in query_upper
+        
+        query_stripped = self._translate(query_stripped)
+        query_stripped = query_stripped.replace('?', '%s')
         
         # Auto-add RETURNING id for INSERT statements to capture lastrowid
         needs_returning = False
-        if query.strip().upper().startswith('INSERT') and 'RETURNING' not in query.upper():
-            query = query.rstrip(';') + ' RETURNING id'
+        if not is_alter_add and query_stripped.strip().upper().startswith('INSERT') and 'RETURNING' not in query_stripped.upper():
+            query_stripped = query_stripped.rstrip().rstrip(';') + ' RETURNING id'
             needs_returning = True
         
+        if is_alter_add:
+            try:
+                if params:
+                    self._cursor.execute(query_stripped, params)
+                else:
+                    self._cursor.execute(query_stripped)
+            except Exception:
+                # Column already exists or other DDL error – rollback and continue
+                self._rollback_on_error()
+            return self
+        
         if params:
-            self._cursor.execute(query, params)
+            self._cursor.execute(query_stripped, params)
         else:
-            self._cursor.execute(query)
+            self._cursor.execute(query_stripped)
         
         # Capture the returned id
         if needs_returning:
@@ -86,14 +189,20 @@ class PostgresTranslatingCursor:
         return self
     
     def fetchone(self):
+        if self._pragma_results is not None:
+            return self._pragma_results[0] if self._pragma_results else None
         row = self._cursor.fetchone()
         return self._convert_row(row)
     
     def fetchall(self):
+        if self._pragma_results is not None:
+            return self._pragma_results
         rows = self._cursor.fetchall()
         return [self._convert_row(row) for row in rows]
     
     def fetchmany(self, size=None):
+        if self._pragma_results is not None:
+            return self._pragma_results[:size] if size else self._pragma_results
         rows = self._cursor.fetchmany(size)
         return [self._convert_row(row) for row in rows]
     
@@ -359,6 +468,9 @@ class PostgresConnection:
         query = re.sub(r'(NOT LIKE\s*)"([^"]*)"', r"\1'\2'", query, flags=re.IGNORECASE)
         query = re.sub(r'(IN\s*\([^)]*)"([^"]*)"', r"\1'\2'", query, flags=re.IGNORECASE)
         
+        # Convert DEFAULT "value" → DEFAULT 'value' for ALTER TABLE / CREATE TABLE in PostgreSQL
+        query = re.sub(r'(DEFAULT\s*)"([^"]*)"', r"\1'\2'", query, flags=re.IGNORECASE)
+        
         return query
     
     def execute(self, query, params=None):
@@ -519,9 +631,6 @@ class Database:
                 conn.close()
     
     def init_db(self):
-        if self.use_postgres:
-            return
-        
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -1185,13 +1294,15 @@ class Database:
             pass
         
         # Migrate existing skillset data to new structure (one-time migration)
-        migrate_existing_skillsets = cursor.execute('''
-            SELECT COUNT(*) FROM labor_resources WHERE skillset IS NOT NULL AND skillset != ''
-        ''').fetchone()[0]
+        migrate_existing_skillsets_row = cursor.execute('''
+            SELECT COUNT(*) as cnt FROM labor_resources WHERE skillset IS NOT NULL AND skillset != ''
+        ''').fetchone()
+        migrate_existing_skillsets = (migrate_existing_skillsets_row['cnt'] if isinstance(migrate_existing_skillsets_row, dict) else migrate_existing_skillsets_row[0]) if migrate_existing_skillsets_row else 0
         
         if migrate_existing_skillsets > 0:
             # Check if migration already done
-            already_migrated = cursor.execute('SELECT COUNT(*) FROM labor_resource_skills').fetchone()[0]
+            already_migrated_row = cursor.execute('SELECT COUNT(*) as cnt FROM labor_resource_skills').fetchone()
+            already_migrated = (already_migrated_row['cnt'] if isinstance(already_migrated_row, dict) else already_migrated_row[0]) if already_migrated_row else 0
             
             if already_migrated == 0:
                 # Get all unique non-empty skillsets from labor_resources
@@ -1202,8 +1313,9 @@ class Database:
                 
                 # Create skillset records for each unique skillset
                 for skillset_row in existing_skillsets:
-                    skillset_text = skillset_row[0].strip()
+                    skillset_text = (skillset_row['skillset'] if isinstance(skillset_row, dict) else skillset_row[0])
                     if skillset_text:
+                        skillset_text = skillset_text.strip()
                         # Handle comma-separated skillsets
                         skillset_parts = [s.strip() for s in skillset_text.split(',') if s.strip()]
                         for skillset_name in skillset_parts:
@@ -1222,8 +1334,8 @@ class Database:
                 ''').fetchall()
                 
                 for lr in labor_resources_with_skills:
-                    lr_id = lr[0]
-                    skillset_text = lr[1].strip()
+                    lr_id = lr['id'] if isinstance(lr, dict) else lr[0]
+                    skillset_text = (lr['skillset'] if isinstance(lr, dict) else lr[1]).strip()
                     if skillset_text:
                         # Handle comma-separated skillsets
                         skillset_parts = [s.strip() for s in skillset_text.split(',') if s.strip()]
@@ -1240,7 +1352,7 @@ class Database:
                                         INSERT OR IGNORE INTO labor_resource_skills 
                                         (labor_resource_id, skillset_id, skill_level)
                                         VALUES (?, ?, 'Intermediate')
-                                    ''', (lr_id, skillset_id[0]))
+                                    ''', (lr_id, skillset_id['id'] if isinstance(skillset_id, dict) else skillset_id[0]))
                                 except sqlite3.IntegrityError:
                                     pass
         
@@ -4579,8 +4691,10 @@ class Database:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN variance_summary TEXT")
         
         # Seed default stages if none exist
-        cursor.execute("SELECT COUNT(*) FROM work_order_stages")
-        if cursor.fetchone()[0] == 0:
+        cursor.execute("SELECT COUNT(*) as cnt FROM work_order_stages")
+        _stages_cnt_row = cursor.fetchone()
+        _stages_cnt = (_stages_cnt_row['cnt'] if isinstance(_stages_cnt_row, dict) else _stages_cnt_row[0]) if _stages_cnt_row else 0
+        if _stages_cnt == 0:
             default_stages = [
                 ('Receiving', 'Work order received and logged', '#17a2b8', 1),
                 ('Inspection', 'Initial inspection in progress', '#ffc107', 2),
@@ -4599,8 +4713,9 @@ class Database:
         
         cursor.execute("SELECT name FROM work_order_stages WHERE name = 'NDT'")
         if not cursor.fetchone():
-            cursor.execute("SELECT MAX(sequence) FROM work_order_stages")
-            max_seq = cursor.fetchone()[0] or 0
+            cursor.execute("SELECT MAX(sequence) as max_seq FROM work_order_stages")
+            _max_seq_row = cursor.fetchone()
+            max_seq = ((_max_seq_row['max_seq'] if isinstance(_max_seq_row, dict) else _max_seq_row[0]) if _max_seq_row else None) or 0
             cursor.execute('''
                 INSERT INTO work_order_stages (name, description, color, sequence, is_active)
                 VALUES ('NDT', 'Non-Destructive Testing in progress', '#9c27b0', ?, 1)
