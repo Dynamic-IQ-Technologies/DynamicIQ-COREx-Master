@@ -44,31 +44,37 @@ _pg_pool = None
 import threading as _threading
 _pool_lock = _threading.Lock()
 
-def _get_pg_pool():
-    """Return the per-process psycopg2 ThreadedConnectionPool, creating it on first call.
+def _build_pool():
+    """Create a new ThreadedConnectionPool with TCP keepalives enabled."""
+    import psycopg2.pool as _pool
+    # keepalives prevent Railway/cloud providers from silently dropping idle connections.
+    # keepalives_idle=60: start probing after 60 s of inactivity
+    # keepalives_interval=10: probe every 10 s
+    # keepalives_count=3: declare connection dead after 3 missed probes
+    return _pool.ThreadedConnectionPool(
+        minconn=1,
+        maxconn=4,
+        dsn=DATABASE_URL,
+        keepalives=1,
+        keepalives_idle=60,
+        keepalives_interval=10,
+        keepalives_count=3,
+    )
 
-    Uses minconn=maxconn=2 so all connections are pre-created at startup.
-    This avoids runtime OperationalError from 'too many connections' when the
-    pool tries to open a new connection under load (e.g. deploy-time spikes).
-    With sync gunicorn workers, each worker only needs 1-2 connections at a time.
-    4 workers × 2 = 8 connections max — well within PostgreSQL's 25-connection limit.
-    """
+
+def _get_pg_pool():
+    """Return the per-process psycopg2 ThreadedConnectionPool, creating it on first call."""
     global _pg_pool
     if _pg_pool is not None:
         return _pg_pool
     with _pool_lock:
         if _pg_pool is not None:
             return _pg_pool
-        import psycopg2.pool as _pool
         import time
         last_exc = None
         for attempt in range(3):
             try:
-                _pg_pool = _pool.ThreadedConnectionPool(
-                    minconn=2,
-                    maxconn=2,
-                    dsn=DATABASE_URL,
-                )
+                _pg_pool = _build_pool()
                 print(f"[Database] Connection pool created (attempt {attempt + 1})")
                 return _pg_pool
             except Exception as exc:
@@ -78,6 +84,20 @@ def _get_pg_pool():
                     time.sleep(2)
         print(f"[Database] Pool creation failed after 3 attempts: {last_exc}")
         return None
+
+
+def _rebuild_pool():
+    """Tear down the current pool (all connections dead) and mark it for recreation."""
+    global _pg_pool
+    with _pool_lock:
+        old = _pg_pool
+        _pg_pool = None
+        if old is not None:
+            try:
+                old.closeall()
+            except Exception:
+                pass
+    print("[Database] Pool rebuilt due to dead connections")
 
 class PostgresTranslatingCursor:
     """Cursor wrapper that translates SQLite SQL to PostgreSQL and converts Decimal to float"""
@@ -721,6 +741,25 @@ class Database:
             if pg_pool is not None:
                 try:
                     raw_conn = pg_pool.getconn()
+                    # Health-check: test if this pooled connection is still alive.
+                    # Railway (and most cloud PG providers) silently close idle connections
+                    # after a timeout. Without this check, a dead connection would return
+                    # OperationalError on the very first query of every page.
+                    try:
+                        raw_conn.cursor().execute('SELECT 1')
+                        raw_conn.rollback()  # reset any implicit transaction
+                    except Exception:
+                        # Connection is dead. Tear down the whole pool so the next call
+                        # to _get_pg_pool() creates a fresh set of live connections.
+                        print("[Database] Stale pooled connection detected — rebuilding pool")
+                        try:
+                            pg_pool.putconn(raw_conn)
+                        except Exception:
+                            pass
+                        _rebuild_pool()
+                        # Fall through to direct connection for this request
+                        raw_conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+                        return PostgresConnection(raw_conn, pool=None)
                     return PostgresConnection(raw_conn, pool=pg_pool)
                 except Exception as pool_err:
                     print(f"[Database] Pool getconn failed ({pool_err}), using direct connection")
