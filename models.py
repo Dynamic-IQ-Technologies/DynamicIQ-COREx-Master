@@ -1052,6 +1052,7 @@ class Database:
                 labor_cost REAL DEFAULT 0,
                 overhead_cost REAL DEFAULT 0,
                 stage_id INTEGER,
+                operational_status TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (product_id) REFERENCES products(id),
                 FOREIGN KEY (stage_id) REFERENCES work_order_stages(id)
@@ -5020,6 +5021,9 @@ class Database:
 
         if 'customer_name' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN customer_name TEXT")
+
+        if 'operational_status' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN operational_status TEXT")
 
         # Seed default stages if none exist
         cursor.execute("SELECT COUNT(*) as cnt FROM work_order_stages")
