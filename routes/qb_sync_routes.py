@@ -24,10 +24,19 @@ CONFLICT_RULES = ('erp_wins', 'qb_wins', 'manual_review')
 
 
 def _auto_redirect_uri(req):
-    """Build the correct public-facing callback URL regardless of environment."""
-    domain = os.environ.get('REPLIT_DOMAINS') or os.environ.get('REPLIT_DEV_DOMAIN')
-    if domain:
-        return f'https://{domain}/qb/callback'
+    """Build the correct public-facing callback URL regardless of environment.
+
+    REPLIT_DOMAINS can be a comma-separated list (e.g. 'app.replit.app,custom.com').
+    We prefer the custom domain (non .replit.app) for production deployments,
+    and fall back to the first entry if no custom domain is found.
+    """
+    raw = os.environ.get('REPLIT_DOMAINS') or os.environ.get('REPLIT_DEV_DOMAIN', '')
+    if raw:
+        domains = [d.strip() for d in raw.split(',') if d.strip()]
+        # Prefer a custom domain (not *.replit.app / *.repl.co)
+        custom = [d for d in domains if not d.endswith('.replit.app') and not d.endswith('.repl.co')]
+        chosen = custom[0] if custom else domains[0]
+        return f'https://{chosen}/qb/callback'
     # Fall back to Flask's host_url (works when behind a proper reverse proxy)
     return req.host_url.rstrip('/') + '/qb/callback'
 
