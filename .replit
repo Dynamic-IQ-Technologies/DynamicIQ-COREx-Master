@@ -47,3 +47,6 @@ REPLIT_DEPLOYMENT = "1"
 
 [userenv.shared]
 BREVO_FROM_EMAIL = "information@aeronexd.com"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-06b2a25b-e7ef-4685-8217-ea51596346f3"
