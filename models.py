@@ -1622,6 +1622,29 @@ class Database:
             except sqlite3.OperationalError:
                 pass
         
+        # Ensure work_order_task_materials table exists (per-task material requirements)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS work_order_task_materials (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                product_id INTEGER,
+                required_qty REAL DEFAULT 0,
+                issued_qty REAL DEFAULT 0,
+                quantity_used REAL DEFAULT 0,
+                unit_of_measure TEXT,
+                warehouse_location TEXT,
+                required_by_date DATE,
+                notes TEXT,
+                status TEXT DEFAULT 'Planned',
+                material_status TEXT DEFAULT 'Planned',
+                unit_cost REAL DEFAULT 0,
+                inventory_id INTEGER,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES work_order_tasks(id)
+            )
+        ''')
+
         # Add unit_cost column to work_order_task_materials if it doesn't exist
         wotm_columns = [row[1] for row in cursor.execute('PRAGMA table_info(work_order_task_materials)').fetchall()]
         if 'unit_cost' not in wotm_columns:
@@ -4834,7 +4857,16 @@ class Database:
         
         if 'variance_summary' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN variance_summary TEXT")
-        
+
+        if 'repair_category' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN repair_category TEXT")
+
+        if 'workorder_type' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN workorder_type TEXT")
+
+        if 'customer_name' not in existing_columns:
+            cursor.execute("ALTER TABLE work_orders ADD COLUMN customer_name TEXT")
+
         # Seed default stages if none exist
         cursor.execute("SELECT COUNT(*) as cnt FROM work_order_stages")
         _stages_cnt_row = cursor.fetchone()
