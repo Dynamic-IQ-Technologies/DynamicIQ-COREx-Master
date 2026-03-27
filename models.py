@@ -4781,11 +4781,60 @@ class Database:
             except Exception:
                 pass
 
+        # Supply Chain Risk Radar tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS supply_risk_profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_type TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                entity_name TEXT,
+                risk_score REAL DEFAULT 0,
+                risk_level TEXT DEFAULT 'Low',
+                score_breakdown TEXT,
+                trend TEXT DEFAULT 'Stable',
+                confidence TEXT DEFAULT 'Medium',
+                mitigation_recommendations TEXT,
+                ai_narrative TEXT,
+                last_calculated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (entity_type, entity_id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS risk_score_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_type TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                entity_name TEXT,
+                risk_score REAL DEFAULT 0,
+                risk_level TEXT,
+                calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_risk_history_entity ON risk_score_history(entity_type, entity_id)')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS risk_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_type TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                entity_name TEXT,
+                event_type TEXT,
+                old_score REAL,
+                new_score REAL,
+                risk_level TEXT,
+                description TEXT,
+                recommendations TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_risk_events_entity ON risk_events(entity_type, entity_id)')
+
         # These tables are created lazily by background engines; add indexes only when
         # the table already exists so we do not block startup on first deployment.
         _lazy_indexes = [
             ('digital_twins',       'digital_twins_type_entity_unique',       'twin_type, entity_id'),
-            ('supply_risk_profiles', 'supply_risk_profiles_type_entity_unique', 'entity_type, entity_id'),
             ('mrr_ai_decisions',    'mrr_ai_decisions_job_unique',             'job_id'),
         ]
         for _tbl, _idx, _cols in _lazy_indexes:
