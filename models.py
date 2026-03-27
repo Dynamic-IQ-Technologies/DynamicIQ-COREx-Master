@@ -508,15 +508,19 @@ class PostgresConnection:
                 after = result[close_paren + 1:]
                 after_stripped = after.lstrip()
                 needs_alias = True
-                if after_stripped:
-                    if re.match(r'^AS\b', after_stripped, re.IGNORECASE):
-                        needs_alias = False
-                    else:
-                        m = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*)', after_stripped)
-                        if m:
-                            first_word = m.group(1).upper()
-                            if first_word not in sql_keywords:
-                                needs_alias = False
+                if after_stripped and after_stripped[0] in ')},;/*+-:=<>|!':
+                    # Closing paren / operator / punctuation means we're inside
+                    # an expression (e.g. EXTRACT(EPOCH FROM (...)) / 86400),
+                    # not a top-level derived table — no alias needed.
+                    needs_alias = False
+                elif after_stripped and re.match(r'^AS\b', after_stripped, re.IGNORECASE):
+                    needs_alias = False
+                elif after_stripped:
+                    m = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*)', after_stripped)
+                    if m:
+                        first_word = m.group(1).upper()
+                        if first_word not in sql_keywords:
+                            needs_alias = False
                 if needs_alias:
                     alias_counter[0] += 1
                     alias = f'_sq{alias_counter[0]}'
