@@ -4831,10 +4831,43 @@ class Database:
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_risk_events_entity ON risk_events(entity_type, entity_id)')
 
+        # Digital Twin tables
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS digital_twins (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                twin_type TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                entity_name TEXT,
+                state_snapshot TEXT,
+                last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                version INTEGER DEFAULT 1,
+                UNIQUE (twin_type, entity_id)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_digital_twins_type ON digital_twins(twin_type)')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS twin_simulations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                scenario_type TEXT NOT NULL,
+                parameters TEXT,
+                status TEXT DEFAULT 'pending',
+                current_state TEXT,
+                simulated_state TEXT,
+                impact_kpis TEXT,
+                executive_summary TEXT,
+                mitigations TEXT,
+                confidence_level TEXT DEFAULT 'Medium',
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP
+            )
+        ''')
+
         # These tables are created lazily by background engines; add indexes only when
         # the table already exists so we do not block startup on first deployment.
         _lazy_indexes = [
-            ('digital_twins',       'digital_twins_type_entity_unique',       'twin_type, entity_id'),
             ('mrr_ai_decisions',    'mrr_ai_decisions_job_unique',             'job_id'),
         ]
         for _tbl, _idx, _cols in _lazy_indexes:
