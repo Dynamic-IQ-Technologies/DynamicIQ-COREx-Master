@@ -4293,6 +4293,67 @@ class Database:
         # Initialize QMS tables
         init_qms_tables(cursor)
         
+        # === SHIPMENTS ===
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS shipments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                shipment_number TEXT UNIQUE NOT NULL,
+                shipment_type TEXT DEFAULT 'Outbound',
+                reference_type TEXT,
+                reference_id INTEGER,
+                status TEXT DEFAULT 'Pending',
+                shipment_stage TEXT,
+                carrier TEXT,
+                tracking_number TEXT,
+                shipping_method TEXT,
+                ship_date DATE,
+                estimated_delivery DATE,
+                actual_delivery_date DATE,
+                ship_from_name TEXT,
+                ship_to_name TEXT,
+                ship_to_address TEXT,
+                weight REAL DEFAULT 0,
+                dimensions TEXT,
+                shipping_cost REAL DEFAULT 0,
+                insurance_amount REAL DEFAULT 0,
+                notes TEXT,
+                created_by INTEGER,
+                shipped_by INTEGER,
+                packed_by INTEGER,
+                released_by INTEGER,
+                confirmed_by INTEGER,
+                released_at TIMESTAMP,
+                confirmed_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (created_by) REFERENCES users(id),
+                FOREIGN KEY (shipped_by) REFERENCES users(id),
+                FOREIGN KEY (packed_by) REFERENCES users(id),
+                FOREIGN KEY (released_by) REFERENCES users(id),
+                FOREIGN KEY (confirmed_by) REFERENCES users(id)
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS shipment_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                shipment_id INTEGER NOT NULL,
+                line_number INTEGER DEFAULT 1,
+                product_id INTEGER,
+                quantity_shipped REAL DEFAULT 0,
+                quantity REAL DEFAULT 0,
+                serial_number TEXT,
+                lot_number TEXT,
+                condition TEXT DEFAULT 'New',
+                package_number TEXT,
+                notes TEXT,
+                sales_order_line_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
