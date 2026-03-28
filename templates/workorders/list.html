@@ -158,17 +158,6 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-aog" data-bs-toggle="tab" data-bs-target="#pane-aog"
-                type="button" role="tab" aria-controls="pane-aog" aria-selected="false">
-            <i class="bi bi-exclamation-triangle-fill text-danger"></i> AOG
-            {% if aog_list %}
-            <span class="badge bg-danger ms-1">{{ aog_list|length }}</span>
-            {% else %}
-            <span class="badge bg-secondary ms-1">0</span>
-            {% endif %}
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-warranty" data-bs-toggle="tab" data-bs-target="#pane-warranty"
                 type="button" role="tab" aria-controls="pane-warranty" aria-selected="false">
             <i class="bi bi-shield-check text-success"></i> Warranty
@@ -345,25 +334,6 @@
         {{ wo_table(workorders, 'workordersTable',
                     show_checkbox=(session.role in ['Admin', 'Planner']),
                     empty_msg='No work orders found matching your criteria.') }}
-    </div>
-
-    {# ---- AOG PANE ---- #}
-    <div class="tab-pane fade p-3" id="pane-aog" role="tabpanel" aria-labelledby="tab-aog">
-        <div class="d-flex align-items-center gap-2 mb-3">
-            <span class="badge bg-danger px-3 py-2 fs-6">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i> Aircraft on Ground (AOG)
-            </span>
-            <span class="text-muted small">Work orders flagged as Aircraft on Ground — highest priority.</span>
-        </div>
-        {% if not aog_list %}
-        <div class="text-center py-5">
-            <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
-            <p class="text-muted mt-3 fw-semibold">No AOG work orders — all clear.</p>
-        </div>
-        {% else %}
-        {{ wo_table(aog_list, 'aogTable', show_checkbox=false,
-                    empty_msg='No AOG work orders.') }}
-        {% endif %}
     </div>
 
     {# ---- WARRANTY PANE ---- #}
