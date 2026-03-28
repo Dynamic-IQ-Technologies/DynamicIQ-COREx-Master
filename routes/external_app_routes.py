@@ -58,7 +58,8 @@ COLOR_OPTIONS = [
 def list_apps():
     db = Database()
     conn = db.get_connection()
-    apps = conn.execute('SELECT * FROM external_apps ORDER BY sort_order, name').fetchall()
+    rows = conn.execute('SELECT * FROM external_apps ORDER BY sort_order, name').fetchall()
+    apps = [dict(row) for row in rows]
     conn.close()
     return render_template('external_apps/list.html', apps=apps, icons=ICON_OPTIONS, colors=COLOR_OPTIONS)
 

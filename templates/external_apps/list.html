@@ -219,7 +219,7 @@
                 <span class="app-category-badge">{{ app.category or 'General' }}</span>
             </div>
             <div class="app-actions">
-                <button class="btn btn-outline-secondary btn-sm" title="Edit" onclick="openEditModal({{ app | tojson }})">
+                <button class="btn btn-outline-secondary btn-sm" title="Edit" onclick="openEditModal({{ app | tojson | e }})">
                     <i class="bi bi-pencil"></i>
                 </button>
                 <form method="POST" action="{{ url_for('external_app_routes.toggle_app', app_id=app.id) }}" class="d-inline">
