@@ -51,7 +51,7 @@
                         </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-outline-primary" 
-                                    onclick="editStage({{ stage.id }}, '{{ stage.name }}', '{{ stage.description or '' }}', '{{ stage.color }}', {{ stage.sequence }}, {{ stage.is_active }})">
+                                    onclick="editStage({{ loop.index0 }})">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             {% if stage.usage_count == 0 %}
@@ -153,14 +153,16 @@
 
 {% block scripts %}
 <script>
-function editStage(id, name, description, color, sequence, isActive) {
-    document.getElementById('editStageForm').action = '/workorders/stages/' + id + '/update';
-    document.getElementById('editName').value = name;
-    document.getElementById('editDescription').value = description;
-    document.getElementById('editColor').value = color;
-    document.getElementById('editSequence').value = sequence;
-    document.getElementById('editIsActive').checked = isActive == 1;
-    
+var STAGES_DATA = {{ stages | tojson }};
+
+function editStage(idx) {
+    var s = STAGES_DATA[idx];
+    document.getElementById('editStageForm').action = '/workorders/stages/' + s.id + '/update';
+    document.getElementById('editName').value = s.name;
+    document.getElementById('editDescription').value = s.description || '';
+    document.getElementById('editColor').value = s.color || '#6c757d';
+    document.getElementById('editSequence').value = s.sequence;
+    document.getElementById('editIsActive').checked = s.is_active == 1;
     new bootstrap.Modal(document.getElementById('editStageModal')).show();
 }
 </script>

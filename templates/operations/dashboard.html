@@ -573,12 +573,12 @@
                                     <td><span class="badge bg-info">{{ stage.wo_count or 0 }}</span></td>
                                     <td>
                                         <button class="btn btn-xs btn-outline-primary py-0 px-1"
-                                                onclick="opsDashEditStage({{ stage.id }}, {{ stage.stage_name|tojson }}, {{ (stage.description or '')|tojson }}, {{ (stage.color or '#6c757d')|tojson }}, {{ stage.sequence }}, {{ 1 if stage.is_active else 0 }})">
+                                                onclick="opsDashEditStage({{ loop.index0 }})">
                                             <i class="bi bi-pencil"></i> Edit
                                         </button>
                                         {% if (stage.wo_count or 0) == 0 %}
                                         <form action="{{ url_for('workorder_routes.delete_stage', id=stage.id) }}?next=/operations-dashboard" method="POST" class="d-inline"
-                                              onsubmit="return confirm('Delete stage ' + {{ stage.stage_name|tojson }} + '?')">
+                                              onsubmit="return confirm('Delete this stage?')">
                                             <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -1408,13 +1408,16 @@ function toggleManageStages() {
     }
 }
 
-function opsDashEditStage(id, name, description, color, sequence, isActive) {
-    document.getElementById('opsDashEditStageForm').action = '/workorders/stages/' + id + '/update?next=/operations-dashboard';
-    document.getElementById('opsDashEditName').value = name;
-    document.getElementById('opsDashEditDescription').value = description;
-    document.getElementById('opsDashEditColor').value = color;
-    document.getElementById('opsDashEditSequence').value = sequence;
-    document.getElementById('opsDashEditIsActive').checked = isActive == 1;
+var OPS_STAGES_DATA = {{ stage_load | tojson }};
+
+function opsDashEditStage(idx) {
+    var s = OPS_STAGES_DATA[idx];
+    document.getElementById('opsDashEditStageForm').action = '/workorders/stages/' + s.id + '/update?next=/operations-dashboard';
+    document.getElementById('opsDashEditName').value = s.stage_name;
+    document.getElementById('opsDashEditDescription').value = s.description || '';
+    document.getElementById('opsDashEditColor').value = s.color || '#6c757d';
+    document.getElementById('opsDashEditSequence').value = s.sequence;
+    document.getElementById('opsDashEditIsActive').checked = s.is_active == 1;
     new bootstrap.Modal(document.getElementById('opsDashEditStageModal')).show();
 }
 </script>

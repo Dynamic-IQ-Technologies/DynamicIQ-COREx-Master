@@ -2715,12 +2715,13 @@ def list_stages():
     db = Database()
     conn = db.get_connection()
     
-    stages = conn.execute('''
+    rows = conn.execute('''
         SELECT wos.*, 
                (SELECT COUNT(*) FROM work_orders WHERE stage_id = wos.id) as usage_count
         FROM work_order_stages wos
         ORDER BY wos.sequence, wos.name
     ''').fetchall()
+    stages = [dict(r) for r in rows]
     
     conn.close()
     return render_template('workorders/stages.html', stages=stages)
