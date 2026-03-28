@@ -151,7 +151,6 @@
     </div>
 </div>
 
-{% block scripts %}
 <script>
 var STAGES_DATA = {{ stages | tojson }};
 
@@ -166,5 +165,4 @@ function editStage(idx) {
     new bootstrap.Modal(document.getElementById('editStageModal')).show();
 }
 </script>
-{% endblock %}
 {% endblock %}
