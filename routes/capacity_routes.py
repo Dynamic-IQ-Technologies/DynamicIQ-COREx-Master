@@ -258,6 +258,9 @@ def create_work_center():
             conn.close()
             
             flash(f'Work Center {code} created successfully!', 'success')
+            action_after = request.form.get('action_after', 'view')
+            if action_after == 'create_another':
+                return redirect(url_for('capacity_routes.create_work_center'))
             return redirect(url_for('capacity_routes.view_work_center', id=wc_id))
             
         except Exception as e:
