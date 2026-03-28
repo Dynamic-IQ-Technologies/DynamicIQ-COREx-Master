@@ -219,7 +219,7 @@
                 <span class="app-category-badge">{{ app.category or 'General' }}</span>
             </div>
             <div class="app-actions">
-                <button class="btn btn-outline-secondary btn-sm" title="Edit" onclick="openEditModal({{ app | tojson | e }})">
+                <button class="btn btn-outline-secondary btn-sm" title="Edit" onclick="openEditModal({{ loop.index0 }})">
                     <i class="bi bi-pencil"></i>
                 </button>
                 <form method="POST" action="{{ url_for('external_app_routes.toggle_app', app_id=app.id) }}" class="d-inline">
@@ -379,6 +379,8 @@
 </div>
 
 <script>
+var APPS_DATA = {{ apps | tojson }};
+
 function selectIcon(el, inputId, gridId) {
     document.querySelectorAll('#' + gridId + ' .icon-option').forEach(o => o.classList.remove('selected'));
     el.classList.add('selected');
@@ -391,7 +393,8 @@ function selectColor(el, inputId, gridId) {
     document.getElementById(inputId).value = el.dataset.color;
 }
 
-function openEditModal(app) {
+function openEditModal(idx) {
+    var app = APPS_DATA[idx];
     document.getElementById('editForm').action = '/connected-apps/edit/' + app.id;
     document.getElementById('editName').value = app.name;
     document.getElementById('editUrl').value = app.url;
