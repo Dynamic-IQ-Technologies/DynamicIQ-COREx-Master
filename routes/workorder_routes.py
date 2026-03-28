@@ -2742,7 +2742,8 @@ def create_stage():
         
         if not name:
             flash('Stage name is required', 'error')
-            return redirect(url_for('workorder_routes.list_stages'))
+            next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
+            return redirect(next_url)
         
         # Get next sequence number
         max_seq = conn.execute('SELECT MAX(sequence) as max_seq FROM work_order_stages').fetchone()
@@ -2761,7 +2762,8 @@ def create_stage():
         flash(f'Error creating stage: {str(e)}', 'error')
     
     conn.close()
-    return redirect(url_for('workorder_routes.list_stages'))
+    next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
+    return redirect(next_url)
 
 
 @workorder_bp.route('/workorders/stages/<int:id>/update', methods=['POST'])
@@ -2796,7 +2798,8 @@ def update_stage(id):
         flash(f'Error updating stage: {str(e)}', 'error')
     
     conn.close()
-    return redirect(url_for('workorder_routes.list_stages'))
+    next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
+    return redirect(next_url)
 
 
 @workorder_bp.route('/workorders/stages/<int:id>/delete', methods=['POST'])
@@ -2823,7 +2826,8 @@ def delete_stage(id):
         flash(f'Error deleting stage: {str(e)}', 'error')
     
     conn.close()
-    return redirect(url_for('workorder_routes.list_stages'))
+    next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
+    return redirect(next_url)
 
 
 @workorder_bp.route('/api/workorder-stages')

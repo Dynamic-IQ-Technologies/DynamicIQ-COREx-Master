@@ -573,12 +573,12 @@
                                     <td><span class="badge bg-info">{{ stage.wo_count or 0 }}</span></td>
                                     <td>
                                         <button class="btn btn-xs btn-outline-primary py-0 px-1"
-                                                onclick="opsDashEditStage({{ stage.id }}, '{{ stage.stage_name|replace("'", "\\'") }}', '{{ (stage.description or '')|replace("'", "\\'") }}', '{{ stage.color or '#6c757d' }}', {{ stage.sequence }}, {{ 1 if stage.is_active else 0 }})">
+                                                onclick="opsDashEditStage({{ stage.id }}, {{ stage.stage_name|tojson }}, {{ (stage.description or '')|tojson }}, {{ (stage.color or '#6c757d')|tojson }}, {{ stage.sequence }}, {{ 1 if stage.is_active else 0 }})">
                                             <i class="bi bi-pencil"></i> Edit
                                         </button>
                                         {% if (stage.wo_count or 0) == 0 %}
-                                        <form action="{{ url_for('workorder_routes.delete_stage', id=stage.id) }}" method="POST" class="d-inline"
-                                              onsubmit="return confirm('Delete stage {{ stage.stage_name }}?')">
+                                        <form action="{{ url_for('workorder_routes.delete_stage', id=stage.id) }}?next=/operations-dashboard" method="POST" class="d-inline"
+                                              onsubmit="return confirm('Delete stage ' + {{ stage.stage_name|tojson }} + '?')">
                                             <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1">
                                                 <i class="bi bi-trash"></i>
                                             </button>
@@ -1318,7 +1318,7 @@ function showStageWorkOrders(stageId, stageName, stageColor) {
 <div class="modal fade" id="opsDashCreateStageModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('workorder_routes.create_stage') }}" method="POST">
+            <form action="{{ url_for('workorder_routes.create_stage') }}?next=/operations-dashboard" method="POST">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add Work Order Stage</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -1357,7 +1357,7 @@ function showStageWorkOrders(stageId, stageName, stageColor) {
 <div class="modal fade" id="opsDashEditStageModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form id="opsDashEditStageForm" method="POST">
+            <form id="opsDashEditStageForm" method="POST" action="">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit Stage</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -1409,7 +1409,7 @@ function toggleManageStages() {
 }
 
 function opsDashEditStage(id, name, description, color, sequence, isActive) {
-    document.getElementById('opsDashEditStageForm').action = '/workorders/stages/' + id + '/update';
+    document.getElementById('opsDashEditStageForm').action = '/workorders/stages/' + id + '/update?next=/operations-dashboard';
     document.getElementById('opsDashEditName').value = name;
     document.getElementById('opsDashEditDescription').value = description;
     document.getElementById('opsDashEditColor').value = color;
