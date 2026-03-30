@@ -4911,6 +4911,137 @@ class Database:
                 pass
         # ── End UNIQUE index migrations ────────────────────────────────────────
 
+        # ── EPM: Equipment Preventive Maintenance tables ────────────────────────
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS epm_equipment (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_tag TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                type TEXT,
+                manufacturer TEXT,
+                model TEXT,
+                serial_number TEXT,
+                location TEXT,
+                work_center_id INTEGER,
+                criticality TEXT DEFAULT 'Medium',
+                commission_date DATE,
+                operating_hours REAL DEFAULT 0,
+                status TEXT DEFAULT 'Active',
+                notes TEXT,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS epm_maintenance_plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                equipment_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                strategy TEXT DEFAULT 'Time-Based',
+                interval_value REAL DEFAULT 90,
+                interval_unit TEXT DEFAULT 'Days',
+                thresholds TEXT,
+                version INTEGER DEFAULT 1,
+                effective_date DATE,
+                owner_user_id INTEGER,
+                active INTEGER DEFAULT 1,
+                auto_generate INTEGER DEFAULT 1,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (equipment_id) REFERENCES epm_equipment(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS epm_maintenance_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_id INTEGER NOT NULL,
+                sequence INTEGER DEFAULT 1,
+                task_type TEXT DEFAULT 'Inspection',
+                description TEXT NOT NULL,
+                required_tools TEXT,
+                required_parts TEXT,
+                estimated_duration REAL DEFAULT 1.0,
+                measurement_required INTEGER DEFAULT 0,
+                min_value REAL,
+                max_value REAL,
+                unit_of_measure TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (plan_id) REFERENCES epm_maintenance_plans(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS epm_work_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mwo_number TEXT UNIQUE NOT NULL,
+                equipment_id INTEGER NOT NULL,
+                plan_id INTEGER,
+                status TEXT DEFAULT 'Planned',
+                scheduled_date DATE,
+                actual_start TIMESTAMP,
+                actual_finish TIMESTAMP,
+                technician_id INTEGER,
+                findings TEXT,
+                follow_up_required INTEGER DEFAULT 0,
+                follow_up_notes TEXT,
+                total_duration REAL,
+                cost REAL DEFAULT 0,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (equipment_id) REFERENCES epm_equipment(id),
+                FOREIGN KEY (plan_id) REFERENCES epm_maintenance_plans(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS epm_task_executions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mwo_id INTEGER NOT NULL,
+                task_id INTEGER NOT NULL,
+                completed INTEGER DEFAULT 0,
+                measured_value REAL,
+                pass_fail TEXT,
+                notes TEXT,
+                completed_by INTEGER,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (mwo_id) REFERENCES epm_work_orders(id),
+                FOREIGN KEY (task_id) REFERENCES epm_maintenance_tasks(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS epm_predictive_signals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                equipment_id INTEGER NOT NULL,
+                signal_type TEXT NOT NULL,
+                value REAL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                risk_score REAL DEFAULT 0,
+                remaining_useful_life REAL,
+                source TEXT DEFAULT 'Manual',
+                notes TEXT,
+                FOREIGN KEY (equipment_id) REFERENCES epm_equipment(id)
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS epm_audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity_type TEXT NOT NULL,
+                entity_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                changed_by INTEGER,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        try:
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_epm_equip_status ON epm_equipment(status)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_epm_mwo_equip ON epm_work_orders(equipment_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_epm_mwo_status ON epm_work_orders(status)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_epm_signals_equip ON epm_predictive_signals(equipment_id)')
+        except Exception:
+            pass
+        # ── End EPM tables ──────────────────────────────────────────────────────
+
         conn.commit()
         conn.close()
     

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}PM Dashboard – EPM{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-speedometer2 me-2 text-warning"></i>PM Compliance Dashboard</h2>
+        <small class="text-muted">Equipment Preventive Maintenance overview</small>
+    </div>
+    <a href="{{ url_for('epm_routes.list_equipment') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Equipment List
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-primary">{{ total_equip }}</div>
+                <div class="text-muted small">Active Equipment</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-info">{{ total_plans }}</div>
+                <div class="text-muted small">Active Plans</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-warning">{{ open_mwos }}</div>
+                <div class="text-muted small">Open MWOs</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-success">{{ completed_mwos }}</div>
+                <div class="text-muted small">Completed MWOs</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-danger">{{ overdue|length }}</div>
+                <div class="text-muted small">Overdue PMs</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold {% if compliance_pct >= 90 %}text-success{% elif compliance_pct >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ compliance_pct }}%
+                </div>
+                <div class="text-muted small">PM Compliance</div>
+                <div class="progress mt-1" style="height:6px;">
+                    <div class="progress-bar bg-{% if compliance_pct >= 90 %}success{% elif compliance_pct >= 70 %}warning{% else %}danger{% endif %}"
+                         style="width:{{ compliance_pct }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold text-danger d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill"></i>Overdue PMs ({{ overdue|length }})
+            </div>
+            <div class="card-body p-0">
+                {% if overdue %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Asset</th><th>Criticality</th><th>Overdue Since</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for eq in overdue %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-secondary font-monospace me-1">{{ eq.asset_tag }}</span>
+                                    {{ eq.name }}
+                                </td>
+                                <td><span class="badge bg-{{ criticality_colors.get(eq.criticality,'secondary') }}">{{ eq.criticality }}</span></td>
+                                <td><span class="badge bg-danger">{{ eq.overdue_since }}</span></td>
+                                <td><a href="{{ url_for('epm_routes.view_equipment', id=eq.id) }}" class="btn btn-xs btn-outline-primary btn-sm"><i class="bi bi-eye"></i></a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-success">
+                    <i class="bi bi-check-circle-fill" style="font-size:2rem;"></i>
+                    <p class="mt-2 mb-0">All PMs are on schedule!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold text-warning d-flex align-items-center gap-2">
+                <i class="bi bi-shield-exclamation"></i>High Risk Assets ({{ high_risk|length }})
+            </div>
+            <div class="card-body p-0">
+                {% if high_risk %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Asset</th><th>Risk Level</th><th>Score</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for eq in high_risk %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-secondary font-monospace me-1">{{ eq.asset_tag }}</span>
+                                    {{ eq.name }}
+                                </td>
+                                <td><span class="badge bg-{% if eq.risk_level == 'Critical' %}danger{% else %}warning text-dark{% endif %}">{{ eq.risk_level }}</span></td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <div class="progress" style="width:50px;height:6px;">
+                                            <div class="progress-bar bg-{% if eq.risk_score >= 75 %}danger{% else %}warning{% endif %}"
+                                                 style="width:{{ eq.risk_score }}%"></div>
+                                        </div>
+                                        <small>{{ eq.risk_score }}%</small>
+                                    </div>
+                                </td>
+                                <td><a href="{{ url_for('epm_routes.view_equipment', id=eq.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-success">
+                    <i class="bi bi-shield-check" style="font-size:2rem;"></i>
+                    <p class="mt-2 mb-0">No high-risk assets detected.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">Recent Work Orders</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr><th>MWO #</th><th>Equipment</th><th>Status</th><th>Scheduled</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for wo in recent_mwos %}
+                        <tr>
+                            <td><span class="font-monospace badge bg-secondary">{{ wo.mwo_number }}</span></td>
+                            <td>
+                                <span class="badge bg-light text-dark me-1">{{ wo.asset_tag }}</span>
+                                {{ wo.equip_name }}
+                            </td>
+                            <td><span class="badge bg-{{ status_colors.get(wo.status,'secondary') }}">{{ wo.status }}</span></td>
+                            <td><small>{{ wo.scheduled_date or '—' }}</small></td>
+                            <td><a href="{{ url_for('epm_routes.view_mwo', id=wo.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not recent_mwos %}
+                        <tr><td colspan="5" class="text-center text-muted py-3">No work orders yet.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

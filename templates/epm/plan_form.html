@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}{% if action == 'create' %}New Plan{% else %}Edit Plan{% endif %} – {{ equip.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('epm_routes.list_equipment') }}">EPM</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('epm_routes.view_equipment', id=equip.id) }}">{{ equip.asset_tag }}</a></li>
+                <li class="breadcrumb-item active">{% if action == 'create' %}New Plan{% else %}Edit Plan{% endif %}</li>
+            </ol>
+        </nav>
+        <h2 class="mb-0"><i class="bi bi-calendar-check me-2 text-warning"></i>
+            {% if action == 'create' %}New Maintenance Plan{% else %}Edit Plan: {{ plan.name }}{% endif %}
+        </h2>
+    </div>
+    <a href="{{ url_for('epm_routes.view_equipment', id=equip.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to Equipment
+    </a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">Plan Details</div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Plan Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required
+                               value="{{ plan.name if action == 'edit' else '' }}"
+                               placeholder="e.g. 90-Day Lubrication & Inspection">
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Strategy</label>
+                            <select name="strategy" class="form-select">
+                                {% for s in ['Time-Based','Usage-Based','Condition-Based','Predictive'] %}
+                                <option value="{{ s }}" {% if (plan.get('strategy') if plan else 'Time-Based') == s %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Interval</label>
+                            <input type="number" name="interval_value" class="form-control" min="1"
+                                   value="{{ plan.interval_value if action == 'edit' else 90 }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Unit</label>
+                            <select name="interval_unit" class="form-select">
+                                {% for u in ['Days','Hours','Cycles'] %}
+                                <option value="{{ u }}" {% if (plan.get('interval_unit') if plan else 'Days') == u %}selected{% endif %}>{{ u }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Effective Date</label>
+                            <input type="date" name="effective_date" class="form-control"
+                                   value="{{ plan.effective_date if action == 'edit' else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Plan Owner</label>
+                            <select name="owner_user_id" class="form-select">
+                                <option value="">— Unassigned —</option>
+                                {% for u in users %}
+                                <option value="{{ u.id }}" {% if plan and plan.get('owner_user_id') == u.id %}selected{% endif %}>{{ u.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="auto_generate" id="autoGen"
+                                       {% if action == 'create' or (plan and plan.get('auto_generate')) %}checked{% endif %}>
+                                <label class="form-check-label" for="autoGen">Auto-generate MWOs</label>
+                            </div>
+                        </div>
+                        {% if action == 'edit' %}
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" name="active" id="planActive"
+                                       {% if plan and plan.get('active') %}checked{% endif %}>
+                                <label class="form-check-label" for="planActive">Plan Active</label>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3 mt-3">
+                        <label class="form-label fw-semibold">Notes</label>
+                        <textarea name="notes" class="form-control" rows="3">{{ plan.notes if action == 'edit' else '' }}</textarea>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{{ url_for('epm_routes.view_equipment', id=equip.id) }}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>
+                            {% if action == 'create' %}Create Plan{% else %}Save Changes{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% if action == 'edit' %}
+    <div class="col-md-5">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold d-flex justify-content-between">
+                <span>Maintenance Tasks ({{ tasks|length }})</span>
+            </div>
+            <div class="card-body p-0">
+                {% if tasks %}
+                <ul class="list-group list-group-flush">
+                    {% for task in tasks %}
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge bg-light text-dark me-1">{{ task.sequence }}</span>
+                            <span class="badge bg-secondary me-1">{{ task.task_type }}</span>
+                            {{ task.description }}
+                            <small class="text-muted d-block mt-1">{{ task.estimated_duration }}h
+                                {% if task.measurement_required %} · Measure: {{ task.min_value }}–{{ task.max_value }} {{ task.unit_of_measure }}{% endif %}
+                            </small>
+                        </div>
+                        <form method="post" action="{{ url_for('epm_routes.delete_task', tid=task.id) }}"
+                              onsubmit="return confirm('Remove this task?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center py-3 mb-0">No tasks yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">Add Task</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('epm_routes.add_task', id=equip.id, pid=plan.id) }}">
+                    <div class="mb-2">
+                        <select name="task_type" class="form-select form-select-sm">
+                            {% for t in ['Inspection','Lubrication','Calibration','Safety','Cleaning','Replacement','Test'] %}
+                            <option value="{{ t }}">{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" name="description" class="form-control form-control-sm"
+                               placeholder="Task description *" required>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <input type="text" name="required_tools" class="form-control form-control-sm" placeholder="Tools required">
+                        </div>
+                        <div class="col-6">
+                            <input type="number" name="estimated_duration" class="form-control form-control-sm"
+                                   placeholder="Duration (h)" step="0.5" min="0.5" value="1.0">
+                        </div>
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="measurement_required" id="measReq"
+                               onchange="document.getElementById('measFields').classList.toggle('d-none', !this.checked)">
+                        <label class="form-check-label form-label-sm" for="measReq">Measurement Required</label>
+                    </div>
+                    <div id="measFields" class="d-none row g-2 mb-2">
+                        <div class="col-4"><input type="number" name="min_value" class="form-control form-control-sm" placeholder="Min" step="0.01"></div>
+                        <div class="col-4"><input type="number" name="max_value" class="form-control form-control-sm" placeholder="Max" step="0.01"></div>
+                        <div class="col-4"><input type="text" name="unit_of_measure" class="form-control form-control-sm" placeholder="Unit"></div>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-success w-100">
+                        <i class="bi bi-plus me-1"></i>Add Task
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

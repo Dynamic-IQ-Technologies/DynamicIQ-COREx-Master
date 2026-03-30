@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}{% if action == 'create' %}New Equipment{% else %}Edit Equipment{% endif %} – EPM{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-tools me-2 text-warning"></i>
+        {% if action == 'create' %}Register New Equipment{% else %}Edit Equipment: {{ equipment.asset_tag }}{% endif %}
+    </h2>
+    <a href="{{ url_for('epm_routes.list_equipment') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to List
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Asset Tag</label>
+                    {% if action == 'create' %}
+                    <input type="text" name="asset_tag" class="form-control"
+                           value="{{ next_tag }}" placeholder="{{ next_tag }}">
+                    <small class="text-muted">Leave blank to auto-generate</small>
+                    {% else %}
+                    <input type="text" class="form-control" value="{{ equipment.asset_tag }}" disabled>
+                    {% endif %}
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold">Equipment Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required
+                           value="{{ equipment.name or '' }}" placeholder="e.g. CNC Milling Machine #3">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Type / Category</label>
+                    <input type="text" name="type" class="form-control"
+                           value="{{ equipment.type or '' }}" placeholder="e.g. Machining Center">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Manufacturer</label>
+                    <input type="text" name="manufacturer" class="form-control"
+                           value="{{ equipment.manufacturer or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Model</label>
+                    <input type="text" name="model" class="form-control"
+                           value="{{ equipment.model or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Serial Number</label>
+                    <input type="text" name="serial_number" class="form-control"
+                           value="{{ equipment.serial_number or '' }}">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Location</label>
+                    <input type="text" name="location" class="form-control"
+                           value="{{ equipment.location or '' }}" placeholder="Building / Bay / Line">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Work Center</label>
+                    <select name="work_center_id" class="form-select">
+                        <option value="">— None —</option>
+                        {% for wc in work_centers %}
+                        <option value="{{ wc.id }}" {% if equipment.work_center_id == wc.id %}selected{% endif %}>
+                            {{ wc.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Criticality</label>
+                    <select name="criticality" class="form-select">
+                        {% for c in ['Low','Medium','High','Safety-Critical'] %}
+                        <option value="{{ c }}" {% if (equipment.criticality or 'Medium') == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Commission Date</label>
+                    <input type="date" name="commission_date" class="form-control"
+                           value="{{ equipment.commission_date or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Operating Hours</label>
+                    <input type="number" name="operating_hours" class="form-control"
+                           step="0.1" min="0" value="{{ equipment.operating_hours or 0 }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Status</label>
+                    <select name="status" class="form-select">
+                        {% for s in ['Active','Down','Decommissioned'] %}
+                        <option value="{{ s }}" {% if (equipment.status or 'Active') == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Notes</label>
+                    <textarea name="notes" class="form-control" rows="3">{{ equipment.notes or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a href="{{ url_for('epm_routes.list_equipment') }}" class="btn btn-outline-secondary">Cancel</a>
+                {% if action == 'create' %}
+                <button type="submit" name="action_after" value="create_another" class="btn btn-outline-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Save &amp; Add Another
+                </button>
+                {% endif %}
+                <button type="submit" name="action_after" value="view" class="btn btn-primary">
+                    <i class="bi bi-check-circle me-1"></i>
+                    {% if action == 'create' %}Register Equipment{% else %}Save Changes{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

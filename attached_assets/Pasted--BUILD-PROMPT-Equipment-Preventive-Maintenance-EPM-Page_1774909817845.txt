@@ -1,0 +1,170 @@
+🛠️ BUILD PROMPT — Equipment Preventive Maintenance (EPM) Page
+ROLE
+
+You are a principal Equipment Preventive Maintenance system architect building a fully functional Preventive & Predictive Maintenance page for an ERP system.
+
+The system must be reliable, scalable, mobile-friendly, audit-ready, and production-safe.
+
+🎯 OBJECTIVE
+
+Create an Equipment Preventive Maintenance (EPM) page that enables users to:
+
+Register and manage equipment
+Define preventive maintenance strategies
+Automatically generate maintenance work orders
+Track execution and compliance
+Predict failures and optimize maintenance intervals
+📍 PAGE LOCATION & ACCESS
+Navigation: Maintenance → Equipment Preventive Maintenance
+Role-based access:
+View / Execute: Technician
+Create / Edit Plans: Maintenance Engineer
+Approve / Override: Maintenance Manager
+Analytics: Reliability Engineer
+🧱 CORE DATA MODELS (REQUIRED)
+Equipment
+equipment_id (UUID)
+asset_tag
+name
+type
+manufacturer
+model
+serial_number
+location
+work_center
+criticality (Low / Medium / High / Safety-Critical)
+commission_date
+operating_hours
+status (Active / Down / Decommissioned)
+MaintenancePlan
+plan_id
+equipment_id
+strategy (Time-Based, Usage-Based, Condition-Based, Predictive)
+interval_value
+interval_unit (Days, Hours, Cycles)
+thresholds (JSON for sensor-based plans)
+version
+effective_date
+owner_user_id
+active
+MaintenanceTask
+task_id
+plan_id
+task_type (Inspection, Lubrication, Calibration, Safety)
+description
+required_tools
+required_parts
+estimated_duration
+measurement_required (boolean)
+min_value
+max_value
+MaintenanceWorkOrder
+mwo_id
+equipment_id
+plan_id
+status (Planned, Released, In Progress, Waiting, Completed, Verified, Closed)
+scheduled_date
+actual_start
+actual_finish
+technician_id
+findings
+follow_up_required
+PredictiveSignal
+signal_id
+equipment_id
+signal_type
+value
+timestamp
+risk_score
+remaining_useful_life
+🔄 WORKFLOW LOGIC (ENFORCED)
+Equipment is registered
+Maintenance plan is assigned
+System generates MWOs automatically
+Technician executes tasks
+Measurements captured and validated
+System evaluates:
+Pass → Close MWO
+Fail → Trigger corrective WO or NCR
+Data feeds predictive engine
+PM intervals auto-adjust if enabled
+
+⚠️ Workflow steps cannot be skipped.
+
+🖥️ UI REQUIREMENTS
+Equipment List View
+Filters:
+Location
+Status
+Criticality
+Indicators:
+Next PM due
+Overdue PMs
+Risk level (predictive)
+Equipment Detail Page
+
+Tabs:
+
+Overview
+Maintenance Plans
+Work Order History
+Predictive Health
+Attachments
+Audit Trail
+Maintenance Calendar
+Visual calendar of PMs
+Drag-to-reschedule (manager-only)
+Color-coded by status & criticality
+🤖 PREDICTIVE MAINTENANCE LOGIC (REQUIRED)
+Calculate:
+Failure probability
+Remaining useful life (RUL)
+Inputs:
+Historical MWOs
+Failures
+Sensor data (if available)
+Output:
+Risk score per asset
+Maintenance recommendation
+🔐 CONTROLS & COMPLIANCE
+Immutable audit logs
+Electronic technician sign-off
+Versioned maintenance plans
+Safety-critical PM lockout
+No hard deletes
+Time-zone aware timestamps
+🔗 ERP INTEGRATIONS
+Inventory: reserve parts automatically
+Quality: auto-create NCR on failure
+Production: coordinate downtime
+Finance: track maintenance cost per asset
+📊 REPORTS & DASHBOARDS
+PM compliance %
+MTBF / MTTR
+Overdue PMs
+Asset risk ranking
+Cost per equipment
+🧪 TESTING & STABILITY
+Unit tests for:
+PM scheduling
+Status transitions
+Integration tests for:
+Work order generation
+Failure simulations for predictive logic
+🚨 NON-NEGOTIABLE RULES
+No PM can be closed without task completion
+No safety PM can be skipped
+No predictive action without explainability
+No silent failures
+✅ ACCEPTANCE CRITERIA
+PMs generate automatically
+Technicians can execute PMs end-to-end
+Predictive risk updates in real time
+Audit logs capture every action
+Page works on desktop and mobile
+OPTIONAL EXTENSIONS
+AI-generated PM plans
+Mobile offline mode
+Digital lockout/tagout
+QR-code equipment access
+Self-healing schedules

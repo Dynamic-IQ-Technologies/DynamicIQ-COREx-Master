@@ -923,6 +923,26 @@
         {% endif %}
         
         {% if user_permissions.get('section_labor', 1) == 1 %}
+        <div class="sidebar-section-title collapsible" onclick="toggleSection('maintenance')">
+            <i class="bi bi-tools section-icon"></i>
+            <span>Maintenance</span>
+            <i class="bi bi-chevron-down toggle-icon" id="maintenance-icon"></i>
+        </div>
+        <ul class="sidebar-nav collapsible-content" id="maintenance-content">
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('epm_routes.epm_dashboard') }}">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>PM Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a class="sidebar-nav-link" href="{{ url_for('epm_routes.list_equipment') }}">
+                    <i class="bi bi-tools"></i>
+                    <span>Equipment Registry</span>
+                </a>
+            </li>
+        </ul>
+
         <div class="sidebar-section-title collapsible" onclick="toggleSection('labortracker')">
             <i class="bi bi-person-badge section-icon"></i>
             <span>Labor Tracker</span>

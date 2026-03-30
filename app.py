@@ -381,6 +381,8 @@ app.register_blueprint(twin_bp)
 app.register_blueprint(inv_compliance_bp)
 from routes.wo_priority_routes import wo_priority_bp
 app.register_blueprint(wo_priority_bp)
+from routes.epm_routes import epm_bp
+app.register_blueprint(epm_bp)
 from routes.qb_sync_routes import qb_sync_bp
 app.register_blueprint(qb_sync_bp)
 

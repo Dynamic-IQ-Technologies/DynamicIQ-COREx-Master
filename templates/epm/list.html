@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Equipment Preventive Maintenance – Dynamic.IQ-COREx{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-tools me-2 text-warning"></i>Equipment Preventive Maintenance</h2>
+        <small class="text-muted">Asset registry &amp; PM health dashboard</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('epm_routes.epm_dashboard') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-speedometer2 me-1"></i>PM Dashboard
+        </a>
+        <a href="{{ url_for('epm_routes.create_equipment') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>New Equipment
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-primary">{{ equipment|length }}</div>
+                <div class="text-muted small">Total Equipment</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-success">{{ total_active }}</div>
+                <div class="text-muted small">Active Assets</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-danger">{{ overdue_count }}</div>
+                <div class="text-muted small">Overdue PMs</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-warning">{{ high_risk_count }}</div>
+                <div class="text-muted small">High Risk Assets</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control form-control-sm"
+                       placeholder="Search name, tag, manufacturer..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <select name="location" class="form-select form-select-sm">
+                    <option value="">All Locations</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc }}" {% if loc == location_filter %}selected{% endif %}>{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
+                    {% for s in ['Active','Down','Decommissioned'] %}
+                    <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="criticality" class="form-select form-select-sm">
+                    <option value="">All Criticality</option>
+                    {% for c in ['Low','Medium','High','Safety-Critical'] %}
+                    <option value="{{ c }}" {% if c == criticality_filter %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary flex-fill">Filter</button>
+                <a href="{{ url_for('epm_routes.list_equipment') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if equipment %}
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Asset Tag</th>
+                    <th>Name / Type</th>
+                    <th>Location</th>
+                    <th>Criticality</th>
+                    <th>Status</th>
+                    <th>Next PM Due</th>
+                    <th>Risk Score</th>
+                    <th>Plans</th>
+                    <th>Open MWOs</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eq in equipment %}
+                <tr>
+                    <td><span class="badge bg-secondary font-monospace">{{ eq.asset_tag }}</span></td>
+                    <td>
+                        <div class="fw-semibold">{{ eq.name }}</div>
+                        {% if eq.type %}<small class="text-muted">{{ eq.type }}</small>{% endif %}
+                    </td>
+                    <td><small>{{ eq.location or '—' }}</small></td>
+                    <td>
+                        <span class="badge bg-{{ criticality_colors.get(eq.criticality, 'secondary') }}">
+                            {{ eq.criticality }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if eq.status == 'Active' %}<span class="badge bg-success">Active</span>
+                        {% elif eq.status == 'Down' %}<span class="badge bg-danger">Down</span>
+                        {% else %}<span class="badge bg-secondary">{{ eq.status }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if eq.next_due %}
+                            {% if eq.next_due < today %}
+                            <span class="badge bg-danger">Overdue {{ eq.next_due.strftime('%d %b %Y') }}</span>
+                            {% elif (eq.next_due - today).days <= 14 %}
+                            <span class="badge bg-warning text-dark">Due {{ eq.next_due.strftime('%d %b %Y') }}</span>
+                            {% else %}
+                            <small class="text-muted">{{ eq.next_due.strftime('%d %b %Y') }}</small>
+                            {% endif %}
+                        {% else %}
+                        <small class="text-muted">No plan</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set rc = eq.risk_level %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-fill" style="height:8px; min-width:60px;">
+                                <div class="progress-bar bg-{% if rc == 'Critical' %}danger{% elif rc == 'High' %}warning{% elif rc == 'Medium' %}info{% else %}success{% endif %}"
+                                     style="width:{{ eq.risk_score }}%"></div>
+                            </div>
+                            <small class="{% if rc in ('Critical','High') %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ eq.risk_score }}%</small>
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        {% if eq.plan_count %}<span class="badge bg-primary">{{ eq.plan_count }}</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if eq.open_mwos %}<span class="badge bg-warning text-dark">{{ eq.open_mwos }}</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('epm_routes.view_equipment', id=eq.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-tools text-muted" style="font-size:3rem;"></i>
+        <p class="text-muted mt-3">No equipment found. <a href="{{ url_for('epm_routes.create_equipment') }}">Register your first asset.</a></p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

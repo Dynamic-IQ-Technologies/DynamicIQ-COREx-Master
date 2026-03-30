@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}{{ mwo.mwo_number }} – Maintenance Work Order{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1">
+                <li class="breadcrumb-item"><a href="{{ url_for('epm_routes.list_equipment') }}">EPM</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('epm_routes.view_equipment', id=mwo.equipment_id) }}">{{ mwo.asset_tag }}</a></li>
+                <li class="breadcrumb-item active">{{ mwo.mwo_number }}</li>
+            </ol>
+        </nav>
+        <h2 class="mb-0">
+            <i class="bi bi-clipboard-check me-2 text-warning"></i>{{ mwo.mwo_number }}
+            <span class="badge bg-{{ status_colors.get(mwo.status,'secondary') }} ms-2 fs-6">{{ mwo.status }}</span>
+        </h2>
+        <small class="text-muted">{{ mwo.equip_name }} ({{ mwo.asset_tag }}) · Plan: {{ mwo.plan_name or 'Ad-hoc' }}</small>
+    </div>
+    <a href="{{ url_for('epm_routes.view_equipment', id=mwo.equipment_id) }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back to Equipment
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">Work Order Details</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4"><small class="text-muted">MWO Number</small><div class="fw-bold font-monospace">{{ mwo.mwo_number }}</div></div>
+                    <div class="col-md-4"><small class="text-muted">Status</small>
+                        <div><span class="badge bg-{{ status_colors.get(mwo.status,'secondary') }} fs-6">{{ mwo.status }}</span></div>
+                    </div>
+                    <div class="col-md-4"><small class="text-muted">Criticality</small>
+                        <div><span class="badge bg-{{ criticality_colors.get(mwo.criticality,'secondary') }}">{{ mwo.criticality }}</span></div>
+                    </div>
+                    <div class="col-md-4 mt-3"><small class="text-muted">Scheduled</small><div>{{ mwo.scheduled_date or '—' }}</div></div>
+                    <div class="col-md-4 mt-3"><small class="text-muted">Started</small><div>{{ mwo.actual_start or '—' }}</div></div>
+                    <div class="col-md-4 mt-3"><small class="text-muted">Finished</small><div>{{ mwo.actual_finish or '—' }}</div></div>
+                    <div class="col-md-4 mt-3"><small class="text-muted">Technician</small><div>{{ mwo.tech_name or '— Unassigned' }}</div></div>
+                    <div class="col-md-4 mt-3"><small class="text-muted">Strategy</small><div>{{ mwo.strategy or '—' }}</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header fw-semibold">Quick Actions</div>
+            <div class="card-body d-flex flex-column gap-2">
+                {% if mwo.status == 'Planned' %}
+                <form method="post">
+                    <input type="hidden" name="action" value="start">
+                    <div class="mb-2">
+                        <select name="technician_id" class="form-select form-select-sm">
+                            <option value="">— Assign Technician —</option>
+                            {% for tech in technicians %}
+                            <option value="{{ tech.id }}" {% if mwo.technician_id == tech.id %}selected{% endif %}>{{ tech.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100">
+                        <i class="bi bi-play-fill me-1"></i>Start Work Order
+                    </button>
+                </form>
+                {% elif mwo.status == 'In Progress' %}
+                <p class="text-muted small">Complete all tasks below, then sign off.</p>
+                {% elif mwo.status == 'Completed' %}
+                <form method="post">
+                    <input type="hidden" name="action" value="close">
+                    <button type="submit" class="btn btn-dark w-100" onclick="return confirm('Close this work order?')">
+                        <i class="bi bi-lock me-1"></i>Close Work Order
+                    </button>
+                </form>
+                {% else %}
+                <p class="text-muted text-center">Work order is {{ mwo.status }}.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if task_executions %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold d-flex justify-content-between">
+        <span>Task Checklist
+            ({{ task_executions | selectattr('completed', 'equalto', 1) | list | length }}/{{ task_executions|length }} completed)
+        </span>
+        {% set pct = (task_executions | selectattr('completed', 'equalto', 1) | list | length / task_executions|length * 100) | int %}
+        <div class="d-flex align-items-center gap-2">
+            <div class="progress" style="width:120px;height:10px;">
+                <div class="progress-bar bg-success" style="width:{{ pct }}%"></div>
+            </div>
+            <small>{{ pct }}%</small>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <form method="post">
+            <input type="hidden" name="action" value="save_tasks">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:50px;">Done</th>
+                        <th style="width:40px;">#</th>
+                        <th>Type</th>
+                        <th>Task Description</th>
+                        <th>Measured Value</th>
+                        <th>Result</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for te in task_executions %}
+                    <tr class="{% if te.completed %}table-success{% endif %}">
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input" name="completed_{{ te.task_id }}"
+                                   value="1" {% if te.completed %}checked{% endif %}
+                                   {% if mwo.status in ('Completed','Closed') %}disabled{% endif %}
+                                   style="transform:scale(1.3);">
+                            <input type="hidden" name="task_id" value="{{ te.task_id }}">
+                        </td>
+                        <td class="text-center"><span class="badge bg-secondary">{{ loop.index }}</span></td>
+                        <td><span class="badge bg-light text-dark">{{ te.task_type }}</span></td>
+                        <td>
+                            <div class="fw-semibold">{{ te.description }}</div>
+                            {% if te.required_tools %}
+                            <small class="text-muted"><i class="bi bi-tools me-1"></i>{{ te.required_tools }}</small>
+                            {% endif %}
+                            {% if te.required_parts %}
+                            <small class="text-muted d-block"><i class="bi bi-box me-1"></i>{{ te.required_parts }}</small>
+                            {% endif %}
+                            <small class="text-muted">Est. {{ te.estimated_duration }}h</small>
+                        </td>
+                        <td style="width:120px;">
+                            {% if te.measurement_required %}
+                            <input type="number" name="measured_{{ te.task_id }}"
+                                   class="form-control form-control-sm" step="0.01"
+                                   value="{{ te.measured_value or '' }}"
+                                   placeholder="{{ te.min_value }}–{{ te.max_value }} {{ te.unit_of_measure }}"
+                                   {% if mwo.status in ('Completed','Closed') %}disabled{% endif %}>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if te.pass_fail == 'Pass' %}
+                            <span class="badge bg-success">Pass</span>
+                            {% elif te.pass_fail == 'Fail' %}
+                            <span class="badge bg-danger">Fail</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="min-width:120px;">
+                            <input type="text" name="notes_{{ te.task_id }}"
+                                   class="form-control form-control-sm"
+                                   value="{{ te.notes or '' }}" placeholder="Optional note"
+                                   {% if mwo.status in ('Completed','Closed') %}disabled{% endif %}>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if mwo.status == 'In Progress' %}
+            <div class="p-3 border-top">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i>Save Task Progress
+                </button>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if mwo.status == 'In Progress' %}
+<div class="card shadow-sm border-success">
+    <div class="card-header fw-semibold text-success">
+        <i class="bi bi-pen me-1"></i>Technician Sign-Off & Completion
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="action" value="complete">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Findings / Observations</label>
+                <textarea name="findings" class="form-control" rows="4"
+                          placeholder="Describe findings, parts replaced, measurements taken, any anomalies observed..."></textarea>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="follow_up_required" id="followUp"
+                       onchange="document.getElementById('followUpNotes').classList.toggle('d-none', !this.checked)">
+                <label class="form-check-label fw-semibold text-warning" for="followUp">
+                    Follow-Up Required
+                </label>
+            </div>
+            <div id="followUpNotes" class="d-none mb-3">
+                <textarea name="follow_up_notes" class="form-control" rows="2"
+                          placeholder="Describe follow-up action needed..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle me-1"></i>Mark as Completed (Electronic Sign-Off)
+            </button>
+            <small class="text-muted ms-3">All tasks must be completed before signing off.</small>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if mwo.findings %}
+<div class="card shadow-sm mt-3">
+    <div class="card-header fw-semibold">Findings</div>
+    <div class="card-body">
+        <p class="mb-0">{{ mwo.findings }}</p>
+        {% if mwo.follow_up_required %}
+        <div class="alert alert-warning mt-2 mb-0">
+            <i class="bi bi-exclamation-triangle me-1"></i><strong>Follow-Up Required:</strong>
+            {{ mwo.follow_up_notes or 'See technician notes.' }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
