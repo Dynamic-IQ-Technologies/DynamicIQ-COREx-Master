@@ -55,10 +55,12 @@ def _build_pool():
         minconn=1,
         maxconn=15,  # headroom for concurrent requests plus background tasks
         dsn=DATABASE_URL,
+        connect_timeout=10,
         keepalives=1,
-        keepalives_idle=60,
-        keepalives_interval=10,
-        keepalives_count=3,
+        keepalives_idle=10,       # start probing after 10 s idle (was 60)
+        keepalives_interval=5,    # probe every 5 s (was 10)
+        keepalives_count=3,       # dead after 3 missed probes = 25 s total (was 90)
+        options="-c statement_timeout=30000",  # kill any query hung >30 s
     )
 
 
@@ -821,12 +823,14 @@ class Database:
                             pass
                         _rebuild_pool()
                         # Fall through to direct connection for this request
-                        raw_conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+                        raw_conn = psycopg2.connect(DATABASE_URL, connect_timeout=10,
+                                                    options="-c statement_timeout=30000")
                         return PostgresConnection(raw_conn, pool=None)
                     return PostgresConnection(raw_conn, pool=pg_pool)
                 except Exception as pool_err:
                     print(f"[Database] Pool getconn failed ({pool_err}), using direct connection")
-            raw_conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+            raw_conn = psycopg2.connect(DATABASE_URL, connect_timeout=10,
+                                        options="-c statement_timeout=30000")
             return PostgresConnection(raw_conn, pool=None)
         else:
             conn = sqlite3.connect(self.db_name)
@@ -5629,25 +5633,28 @@ class User:
     def get_by_id(user_id):
         db = Database()
         conn = db.get_connection()
-        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-        conn.close()
-        return user
+        try:
+            return conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        finally:
+            conn.close()
     
     @staticmethod
     def get_by_username(username):
         db = Database()
         conn = db.get_connection()
-        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-        conn.close()
-        return user
+        try:
+            return conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        finally:
+            conn.close()
     
     @staticmethod
     def get_by_email(email):
         db = Database()
         conn = db.get_connection()
-        user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
-        conn.close()
-        return user
+        try:
+            return conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+        finally:
+            conn.close()
     
     @staticmethod
     def verify_password(user, password):
@@ -5657,18 +5664,21 @@ class User:
     def get_all():
         db = Database()
         conn = db.get_connection()
-        users = conn.execute('SELECT id, username, email, role, last_login, created_at, COALESCE(is_active, 1) as is_active FROM users ORDER BY created_at DESC').fetchall()
-        conn.close()
-        return users
+        try:
+            return conn.execute('SELECT id, username, email, role, last_login, created_at, COALESCE(is_active, 1) as is_active FROM users ORDER BY created_at DESC').fetchall()
+        finally:
+            conn.close()
     
     @staticmethod
     def toggle_active(user_id, is_active):
         db = Database()
         conn = db.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('UPDATE users SET is_active = ? WHERE id = ?', (1 if is_active else 0, user_id))
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('UPDATE users SET is_active = ? WHERE id = ?', (1 if is_active else 0, user_id))
+            conn.commit()
+        finally:
+            conn.close()
     
     @staticmethod
     def update_last_login(user_id):
