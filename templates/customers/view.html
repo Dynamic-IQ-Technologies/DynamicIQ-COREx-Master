@@ -160,6 +160,16 @@
                                 <td>{{ customer.phone or '-' }}</td>
                             </tr>
                             <tr>
+                                <th>Website:</th>
+                                <td>
+                                    {% if customer.website %}
+                                    <a href="{{ customer.website }}" target="_blank" rel="noopener">
+                                        <i class="bi bi-globe me-1"></i>{{ customer.website }}
+                                    </a>
+                                    {% else %}-{% endif %}
+                                </td>
+                            </tr>
+                            <tr>
                                 <th>Payment Terms:</th>
                                 <td>Net {{ customer.payment_terms }} Days</td>
                             </tr>

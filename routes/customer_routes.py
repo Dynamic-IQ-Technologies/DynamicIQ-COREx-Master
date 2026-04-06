@@ -64,8 +64,8 @@ def create_customer():
                 INSERT INTO customers (
                     customer_number, name, contact_person, email, phone,
                     billing_address, shipping_address, payment_terms, credit_limit,
-                    tax_exempt, notes, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tax_exempt, notes, status, website
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 customer_number,
                 customer_name,
@@ -78,7 +78,8 @@ def create_customer():
                 credit_limit,
                 1 if request.form.get('tax_exempt') else 0,
                 request.form.get('notes', ''),
-                request.form.get('status', 'Active')
+                request.form.get('status', 'Active'),
+                request.form.get('website', '').strip()
             ))
             
             customer_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -330,7 +331,8 @@ def edit_customer(id):
                 UPDATE customers SET
                     name = ?, contact_person = ?, email = ?, phone = ?,
                     billing_address = ?, shipping_address = ?, payment_terms = ?,
-                    credit_limit = ?, tax_exempt = ?, notes = ?, status = ?
+                    credit_limit = ?, tax_exempt = ?, notes = ?, status = ?,
+                    website = ?
                 WHERE id = ?
             ''', (
                 request.form['name'],
@@ -344,6 +346,7 @@ def edit_customer(id):
                 1 if request.form.get('tax_exempt') else 0,
                 request.form.get('notes', ''),
                 request.form.get('status', 'Active'),
+                request.form.get('website', '').strip(),
                 id
             ))
             

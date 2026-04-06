@@ -163,6 +163,16 @@
                             <th>Address</th>
                             <td>{{ supplier.address or '-' }}</td>
                         </tr>
+                        <tr>
+                            <th>Website</th>
+                            <td>
+                                {% if supplier.website %}
+                                <a href="{{ supplier.website }}" target="_blank" rel="noopener">
+                                    <i class="bi bi-globe me-1"></i>{{ supplier.website }}
+                                </a>
+                                {% else %}-{% endif %}
+                            </td>
+                        </tr>
                     </table>
                 </div>
 

@@ -1758,6 +1758,10 @@ class Database:
             cursor.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active'")
         except Exception:
             pass
+        try:
+            cursor.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS website TEXT")
+        except Exception:
+            pass
         
         # Ensure work_order_task_materials table exists (per-task material requirements)
         cursor.execute('''
@@ -5079,6 +5083,10 @@ class Database:
                 cursor.execute("ALTER TABLE customers ADD COLUMN portal_enabled INTEGER DEFAULT 0")
             except sqlite3.OperationalError:
                 pass
+        try:
+            cursor.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS website TEXT")
+        except Exception:
+            pass
     
     def _migrate_sales_order_lines(self, cursor):
         """Add new columns to sales_order_lines table for enhanced functionality"""

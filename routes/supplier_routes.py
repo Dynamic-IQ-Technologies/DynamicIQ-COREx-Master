@@ -66,15 +66,16 @@ def create_supplier():
             return redirect(url_for('supplier_routes.create_supplier'))
         
         conn.execute('''
-            INSERT INTO suppliers (code, name, contact_person, email, phone, address)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO suppliers (code, name, contact_person, email, phone, address, website)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             supplier_code,
             supplier_name,
             request.form.get('contact_person', ''),
             request.form.get('email', ''),
             request.form.get('phone', ''),
-            request.form.get('address', '')
+            request.form.get('address', ''),
+            request.form.get('website', '').strip()
         ))
         
         supplier_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -99,7 +100,7 @@ def edit_supplier(id):
         
         conn.execute('''
             UPDATE suppliers 
-            SET code=?, name=?, contact_person=?, email=?, phone=?, address=?
+            SET code=?, name=?, contact_person=?, email=?, phone=?, address=?, website=?
             WHERE id=?
         ''', (
             request.form['code'],
@@ -108,6 +109,7 @@ def edit_supplier(id):
             request.form.get('email', ''),
             request.form.get('phone', ''),
             request.form.get('address', ''),
+            request.form.get('website', '').strip(),
             id
         ))
         
