@@ -362,13 +362,6 @@ def create_inventory():
     if request.method == 'POST':
         product_id = int(request.form['product_id'])
         
-        existing = conn.execute('SELECT id FROM inventory WHERE product_id=?', (product_id,)).fetchone()
-        
-        if existing:
-            conn.close()
-            flash('Inventory already exists for this product. Use adjust instead.', 'warning')
-            return redirect(url_for('inventory_routes.list_inventory'))
-        
         # Get serialization fields
         is_serialized = 1 if request.form.get('is_serialized') else 0
         serial_number = request.form.get('serial_number', '').strip()
@@ -424,7 +417,6 @@ def create_inventory():
     
     products = conn.execute('''
         SELECT p.* FROM products p
-        WHERE p.id NOT IN (SELECT product_id FROM inventory)
         ORDER BY p.code
     ''').fetchall()
     conn.close()

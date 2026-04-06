@@ -23,7 +23,7 @@
                             <option value="{{ product.id }}" data-product-type="{{ product.product_type or '' }}">{{ product.code }} - {{ product.name }}</option>
                             {% endfor %}
                         </select>
-                        <small class="form-text text-muted">Only products without existing inventory are shown</small>
+                        <small class="form-text text-muted">Multiple inventory lines per product are supported (e.g. different warehouses or serial numbers)</small>
                     </div>
                 </div>
             </div>
