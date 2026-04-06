@@ -228,11 +228,13 @@
             <i class="bi bi-info-circle"></i> Overview
         </button>
     </li>
+    {% if workorder.is_warranty %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="receiving-tab" data-bs-toggle="tab" data-bs-target="#receivingPane" type="button" role="tab">
             <i class="bi bi-clipboard-check"></i> Receiving Inspection
         </button>
     </li>
+    {% endif %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasksPane" type="button" role="tab">
             <i class="bi bi-list-check"></i> Tasks <span class="badge bg-primary">{{ tasks|length }}</span>
@@ -581,6 +583,7 @@
         </div>
     </div>
 
+    {% if workorder.is_warranty %}
     <div class="tab-pane fade" id="receivingPane" role="tabpanel">
         <div class="card">
             <div class="card-header bg-white py-2">
@@ -797,6 +800,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <div class="tab-pane fade" id="tasksPane" role="tabpanel">
         <div class="card">
