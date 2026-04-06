@@ -408,7 +408,8 @@ class PostgresConnection:
                         ts1 = convert_arg_to_timestamp(arg1)
                         ts2 = convert_arg_to_timestamp(arg2)
                         # Replace with EXTRACT(EPOCH FROM ...) / 86400.0 to get fractional days
-                        new_expr = f"(EXTRACT(EPOCH FROM ({ts1} - {ts2})) / 86400.0)"
+                        # Cast to ::numeric so ROUND(expr, n) works in PostgreSQL
+                        new_expr = f"(EXTRACT(EPOCH FROM ({ts1} - {ts2})) / 86400.0)::numeric"
                         result = result[:match.start()] + new_expr + result[end2+1:]
                         # Don't advance search_pos since we replaced content, restart from same position
                         continue
