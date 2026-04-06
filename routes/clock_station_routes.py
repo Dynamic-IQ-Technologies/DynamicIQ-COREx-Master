@@ -315,7 +315,7 @@ def clock_punch():
         ''', (employee_id, task_id)).fetchone()
         
         if last_clock_in:
-            clock_in_time = datetime.strptime(last_clock_in['punch_time'], '%Y-%m-%d %H:%M:%S')
+            clock_in_time = _parse_ts(last_clock_in['punch_time'])
             hours_worked = (punch_time - clock_in_time).total_seconds() / 3600
             
             # Get employee hourly rate
@@ -675,7 +675,13 @@ def manager_dashboard():
         ) AND tcp.punch_type = 'Clock In'
         ORDER BY tcp.punch_time DESC
     ''').fetchall()
-    
+    # Normalize punch_time to string so templates can safely slice it
+    clocked_in = [dict(row) for row in clocked_in]
+    for row in clocked_in:
+        pt = row.get('punch_time')
+        if pt and not isinstance(pt, str):
+            row['punch_time'] = pt.strftime('%Y-%m-%d %H:%M:%S')
+
     # Get employees who have NOT clocked in today (Non Active Labor)
     non_active = conn.execute('''
         SELECT 
@@ -694,7 +700,13 @@ def manager_dashboard():
         )
         ORDER BY lr.employee_code
     ''', (today,)).fetchall()
-    
+    # Normalize last_punch_time to string
+    non_active = [dict(row) for row in non_active]
+    for row in non_active:
+        lpt = row.get('last_punch_time')
+        if lpt and not isinstance(lpt, str):
+            row['last_punch_time'] = lpt.strftime('%Y-%m-%d %H:%M:%S')
+
     total_hours = sum(emp['hours'] for emp in employee_stats)
     total_labor_cost = sum(emp['labor_cost'] for emp in employee_stats)
     
@@ -810,12 +822,13 @@ def export_timesheet_csv():
     writer.writerow(['Employee Code', 'Name', 'Punch Type', 'Date', 'Time', 'Location', 'Project', 'Notes'])
     
     for punch in punches:
+        pt = _parse_ts(punch['punch_time'])
         writer.writerow([
             punch['employee_code'],
             punch['name'],
             punch['punch_type'],
-            punch['punch_time'][:10],
-            punch['punch_time'][11:19],
+            pt.strftime('%Y-%m-%d') if pt else '',
+            pt.strftime('%H:%M:%S') if pt else '',
             punch['location'] or '',
             punch['project_name'] or '',
             punch['notes'] or ''
