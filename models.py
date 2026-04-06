@@ -1930,7 +1930,18 @@ class Database:
                 cursor.execute('ALTER TABLE work_order_tasks ADD COLUMN work_center_id INTEGER REFERENCES work_centers(id)')
             except sqlite3.OperationalError:
                 pass
-        
+
+        for _col, _type in [
+            ('task_instructions', 'TEXT'),
+            ('discrepancies',     'TEXT'),
+            ('corrective_actions','TEXT'),
+        ]:
+            if _col not in wot_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE work_order_tasks ADD COLUMN IF NOT EXISTS {_col} {_type}')
+                except Exception:
+                    pass
+
         # Create task_templates table for reusable task templates
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS task_templates (
