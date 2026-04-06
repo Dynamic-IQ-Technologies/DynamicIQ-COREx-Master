@@ -50,16 +50,15 @@
                             <span class="badge bg-info">{{ stage.usage_count }} WO(s)</span>
                         </td>
                         <td>
-                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                            <button type="button" class="btn btn-sm btn-outline-primary"
                                     onclick="editStage({{ loop.index0 }})">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <form action="{{ url_for('workorder_routes.delete_stage', id=stage.id) }}" method="POST" class="d-inline"
-                                  onsubmit="return confirmDeleteStage('{{ stage.name | e }}', {{ stage.usage_count }})">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete stage">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    title="Delete stage"
+                                    onclick="openDeleteModal({{ stage.id }}, '{{ stage.name | e }}', {{ stage.usage_count }})">
+                                <i class="bi bi-trash"></i>
+                            </button>
                         </td>
                     </tr>
                     {% else %}
@@ -149,6 +148,26 @@
     </div>
 </div>
 
+<div class="modal fade" id="deleteStageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Delete Stage</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteStageMsg" class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteStageForm" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger">Delete Stage</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 var STAGES_DATA = {{ stages | tojson }};
 
@@ -163,11 +182,16 @@ function editStage(idx) {
     new bootstrap.Modal(document.getElementById('editStageModal')).show();
 }
 
-function confirmDeleteStage(name, usageCount) {
+function openDeleteModal(id, name, usageCount) {
+    var msg;
     if (usageCount > 0) {
-        return confirm('Delete stage "' + name + '"?\n\nThis stage is currently assigned to ' + usageCount + ' work order(s). Deleting it will remove the stage assignment from those work orders.\n\nAre you sure you want to continue?');
+        msg = 'Are you sure you want to delete the stage "' + name + '"?\n\nThis stage is currently assigned to ' + usageCount + ' work order(s). Their stage assignment will be cleared automatically.';
+    } else {
+        msg = 'Are you sure you want to delete the stage "' + name + '"? This cannot be undone.';
     }
-    return confirm('Delete stage "' + name + '"? This cannot be undone.');
+    document.getElementById('deleteStageMsg').textContent = msg;
+    document.getElementById('deleteStageForm').action = '/workorders/stages/' + id + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteStageModal')).show();
 }
 </script>
 {% endblock %}
