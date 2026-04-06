@@ -2482,6 +2482,9 @@ def return_material(wo_id, requirement_id):
 @login_required
 def work_order_traveler(id):
     from models import CompanySettings
+    import qrcode
+    import io
+    import base64
     db = Database()
     conn = db.get_connection()
     
@@ -2532,13 +2535,25 @@ def work_order_traveler(id):
     company_settings = CompanySettings.get_or_create_default()
     
     conn.close()
+
+    # Generate QR code pointing to the WO clock station
+    clock_station_url = f"{request.host_url.rstrip('/')}workorders/{id}/qr-clock-station"
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=3)
+    qr.add_data(clock_station_url)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="#1e3a8a", back_color="white")
+    buf = io.BytesIO()
+    qr_img.save(buf, format='PNG')
+    qr_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
     
     return render_template('workorders/traveler.html', 
                          workorder=workorder, 
                          requirements=requirements,
                          tasks=tasks,
                          company_settings=company_settings,
-                         now=datetime.now)
+                         now=datetime.now,
+                         qr_b64=qr_b64,
+                         clock_station_url=clock_station_url)
 
 
 @workorder_bp.route('/api/workorders/<int:id>/update-stage', methods=['POST'])

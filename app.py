@@ -85,6 +85,8 @@ from routes.twin_routes import twin_bp
 from routes.inv_compliance_routes import inv_compliance_bp
 from engines.asc_ai import asc_engine
 import os
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SESSION_SECRET', 'dev-secret-key-change-in-production')
@@ -649,6 +651,21 @@ def initialize_application():
         print(f"[Startup] Production hardening check: {e}")
 
 initialize_application()
+
+# ── 5 PM Auto Clock-Out Scheduler ────────────────────────────────────────────
+try:
+    from routes.time_tracking_routes import auto_clock_out_all
+    _scheduler = BackgroundScheduler(daemon=True)
+    _scheduler.add_job(
+        auto_clock_out_all,
+        trigger=CronTrigger(hour=17, minute=0, second=0),
+        id='auto_clock_out_5pm',
+        replace_existing=True
+    )
+    _scheduler.start()
+    print('[Scheduler] Auto clock-out at 5:00 PM daily — scheduled.')
+except Exception as _sched_err:
+    print(f'[Scheduler] Could not start auto clock-out scheduler: {_sched_err}')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

@@ -505,3 +505,255 @@ def supervisor_view():
     return render_template('time_tracking/supervisor.html',
                          entries=entries,
                          active_entries=active_entries)
+
+
+# ─── QR Code Clock Station ────────────────────────────────────────────────────
+
+@time_tracking_bp.route('/workorders/<int:wo_id>/qr-clock-station')
+@login_required
+def qr_clock_station(wo_id):
+    """Mobile-friendly clock in/out page reached by scanning the traveler QR code."""
+    db = Database()
+    conn = db.get_connection()
+    user_id = session.get('user_id')
+
+    # Work order must exist
+    workorder = conn.execute('''
+        SELECT wo.id, wo.wo_number, wo.status, p.code as product_code, p.name as product_name
+        FROM work_orders wo
+        JOIN products p ON wo.product_id = p.id
+        WHERE wo.id = ?
+    ''', (wo_id,)).fetchone()
+
+    if not workorder:
+        flash('Work order not found.', 'danger')
+        conn.close()
+        return redirect(url_for('time_tracking_routes.time_tracking_page'))
+
+    # Get the employee record for the current user
+    employee = conn.execute('''
+        SELECT lr.*, (lr.first_name || ' ' || lr.last_name) as name
+        FROM labor_resources lr
+        WHERE lr.user_id = ?
+    ''', (user_id,)).fetchone()
+
+    # Check for an active clock-in on any WO
+    active_entry = None
+    if employee:
+        active_entry = conn.execute('''
+            SELECT tt.*, wo.wo_number, p.name as product_name, wot.task_name
+            FROM work_order_time_tracking tt
+            JOIN work_orders wo ON tt.work_order_id = wo.id
+            JOIN products p ON wo.product_id = p.id
+            LEFT JOIN work_order_tasks wot ON tt.task_id = wot.id
+            WHERE tt.employee_id = ? AND tt.status = 'In Progress'
+            ORDER BY tt.clock_in_time DESC
+            LIMIT 1
+        ''', (employee['id'],)).fetchone()
+
+    # Get tasks for this work order
+    tasks = conn.execute('''
+        SELECT id, task_name, sequence_number, status
+        FROM work_order_tasks
+        WHERE work_order_id = ? AND status NOT IN ('Completed', 'Cancelled')
+        ORDER BY sequence_number, id
+    ''', (wo_id,)).fetchall()
+
+    conn.close()
+    return render_template('workorders/qr_clock_station.html',
+                           workorder=workorder,
+                           employee=employee,
+                           active_entry=active_entry,
+                           tasks=tasks)
+
+
+@time_tracking_bp.route('/workorders/<int:wo_id>/qr-clock-in', methods=['POST'])
+@login_required
+def qr_clock_in(wo_id):
+    """Handle clock-in from the QR clock station page."""
+    db = Database()
+    conn = db.get_connection()
+    user_id = session.get('user_id')
+
+    try:
+        task_id = request.form.get('task_id', '')
+        task_id = int(task_id) if task_id else None
+        notes = request.form.get('notes', '')
+
+        employee = conn.execute('''
+            SELECT lr.*, (lr.first_name || ' ' || lr.last_name) as name
+            FROM labor_resources lr WHERE lr.user_id = ?
+        ''', (user_id,)).fetchone()
+
+        if not employee:
+            flash('No employee record linked to your account. Contact your administrator.', 'danger')
+            conn.close()
+            return redirect(url_for('time_tracking_routes.qr_clock_station', wo_id=wo_id))
+
+        # Guard: already clocked in somewhere
+        existing = conn.execute('''
+            SELECT id FROM work_order_time_tracking
+            WHERE employee_id = ? AND status = 'In Progress'
+        ''', (employee['id'],)).fetchone()
+
+        if existing:
+            flash('You are already clocked in. Please clock out first.', 'warning')
+            conn.close()
+            return redirect(url_for('time_tracking_routes.qr_clock_station', wo_id=wo_id))
+
+        # Generate entry number
+        last_entry = conn.execute('''
+            SELECT entry_number FROM work_order_time_tracking
+            WHERE entry_number LIKE 'CLK-%'
+            ORDER BY CAST(SUBSTR(entry_number, 5) AS INTEGER) DESC
+            LIMIT 1
+        ''').fetchone()
+
+        if last_entry:
+            try:
+                next_number = int(last_entry['entry_number'].split('-')[1]) + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+
+        entry_number = f'CLK-{next_number:06d}'
+        clock_in_time = datetime.now().isoformat()
+
+        conn.execute('''
+            INSERT INTO work_order_time_tracking
+            (entry_number, employee_id, work_order_id, task_id, clock_in_time,
+             hourly_rate, status, notes, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'In Progress', ?, ?, ?)
+        ''', (entry_number, employee['id'], wo_id, task_id, clock_in_time,
+              employee.get('hourly_rate', 0), notes, user_id, clock_in_time))
+
+        conn.execute('''
+            UPDATE work_orders SET status = 'In Progress', actual_start_date = CURRENT_DATE
+            WHERE id = ? AND status = 'Released'
+        ''', (wo_id,))
+
+        if task_id:
+            conn.execute('''
+                UPDATE work_order_tasks SET status = 'In Progress'
+                WHERE id = ? AND status = 'Not Started'
+            ''', (task_id,))
+
+        conn.commit()
+        flash(f'Clocked in! Entry: {entry_number}', 'success')
+
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error clocking in: {str(e)}', 'danger')
+    finally:
+        conn.close()
+
+    return redirect(url_for('time_tracking_routes.qr_clock_station', wo_id=wo_id))
+
+
+@time_tracking_bp.route('/time-tracking/qr-clock-out/<int:entry_id>', methods=['POST'])
+@login_required
+def qr_clock_out(entry_id):
+    """Handle clock-out from the QR clock station page."""
+    db = Database()
+    conn = db.get_connection()
+    user_id = session.get('user_id')
+    wo_id = request.form.get('wo_id', type=int)
+
+    try:
+        notes = request.form.get('notes', '')
+
+        employee = conn.execute('''
+            SELECT lr.*, (lr.first_name || ' ' || lr.last_name) as name
+            FROM labor_resources lr WHERE lr.user_id = ?
+        ''', (user_id,)).fetchone()
+
+        if not employee:
+            flash('No employee record linked to your account.', 'danger')
+            conn.close()
+            return redirect(url_for('time_tracking_routes.qr_clock_station', wo_id=wo_id or 0))
+
+        entry = conn.execute('''
+            SELECT tt.*, lr.hourly_rate
+            FROM work_order_time_tracking tt
+            JOIN labor_resources lr ON tt.employee_id = lr.id
+            WHERE tt.id = ? AND tt.employee_id = ?
+        ''', (entry_id, employee['id'])).fetchone()
+
+        if not entry:
+            flash('Entry not found or you do not have permission to clock out.', 'danger')
+            conn.close()
+            return redirect(url_for('time_tracking_routes.qr_clock_station', wo_id=wo_id or 0))
+
+        if entry['status'] != 'In Progress':
+            flash('This entry is already clocked out.', 'warning')
+            conn.close()
+            return redirect(url_for('time_tracking_routes.qr_clock_station', wo_id=wo_id or entry['work_order_id']))
+
+        _perform_clock_out(conn, entry, notes, user_id)
+        conn.commit()
+        hours_worked = (datetime.now() - parse_datetime(entry['clock_in_time'])).total_seconds() / 3600
+        flash(f'Clocked out successfully! Hours worked: {hours_worked:.2f}', 'success')
+
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error clocking out: {str(e)}', 'danger')
+    finally:
+        conn.close()
+
+    return redirect(url_for('time_tracking_routes.qr_clock_station', wo_id=wo_id or entry['work_order_id']))
+
+
+def _perform_clock_out(conn, entry, notes, user_id):
+    """Shared clock-out logic used by the QR station and the 5 PM auto clock-out."""
+    import math as _math
+    clock_out_time = datetime.now()
+    clock_in_time = parse_datetime(entry['clock_in_time'])
+    hours_worked = (clock_out_time - clock_in_time).total_seconds() / 3600
+    if not _math.isfinite(hours_worked) or hours_worked < 0:
+        hours_worked = 0
+    labor_cost = hours_worked * (entry['hourly_rate'] or 0)
+
+    conn.execute('''
+        UPDATE work_order_time_tracking
+        SET clock_out_time = ?, hours_worked = ?, labor_cost = ?,
+            status = 'Completed', notes = ?, modified_by = ?, modified_at = ?
+        WHERE id = ?
+    ''', (clock_out_time.isoformat(), hours_worked, labor_cost,
+          notes, user_id, clock_out_time.isoformat(), entry['id']))
+
+    conn.execute('''
+        UPDATE work_orders SET labor_cost = labor_cost + ? WHERE id = ?
+    ''', (labor_cost, entry['work_order_id']))
+
+    if entry.get('task_id'):
+        conn.execute('''
+            UPDATE work_order_tasks
+            SET actual_hours = actual_hours + ?, actual_labor_cost = actual_labor_cost + ?
+            WHERE id = ?
+        ''', (hours_worked, labor_cost, entry['task_id']))
+
+
+def auto_clock_out_all(reason='Auto clock-out at 5:00 PM'):
+    """Clock out all employees still clocked in. Called by the daily 5 PM scheduler."""
+    try:
+        db = Database()
+        conn = db.get_connection()
+        active = conn.execute('''
+            SELECT tt.*, lr.hourly_rate
+            FROM work_order_time_tracking tt
+            JOIN labor_resources lr ON tt.employee_id = lr.id
+            WHERE tt.status = 'In Progress'
+        ''').fetchall()
+
+        for entry in active:
+            try:
+                _perform_clock_out(conn, entry, reason, None)
+            except Exception:
+                pass
+
+        conn.commit()
+        conn.close()
+        print(f'[AutoClockOut] Clocked out {len(active)} active entr{"y" if len(active)==1 else "ies"}.')
+    except Exception as e:
+        print(f'[AutoClockOut] Error: {e}')
