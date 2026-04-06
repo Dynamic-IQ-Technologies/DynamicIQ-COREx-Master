@@ -2537,7 +2537,14 @@ def work_order_traveler(id):
     conn.close()
 
     # Generate QR code pointing to the WO clock station
-    clock_station_url = f"{request.host_url.rstrip('/')}workorders/{id}/qr-clock-station"
+    # Use the public Replit domain so the QR code is scannable from a phone.
+    # Fall back to request.host_url (with the slash fix) for non-Replit deployments.
+    import os as _os
+    _replit_domain = _os.environ.get('REPLIT_DEV_DOMAIN') or _os.environ.get('REPLIT_DOMAINS', '').split(',')[0].strip()
+    if _replit_domain:
+        clock_station_url = f"https://{_replit_domain}/workorders/{id}/qr-clock-station"
+    else:
+        clock_station_url = f"{request.host_url.rstrip('/')}/workorders/{id}/qr-clock-station"
     qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=3)
     qr.add_data(clock_station_url)
     qr.make(fit=True)
