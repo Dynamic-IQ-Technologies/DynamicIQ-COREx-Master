@@ -817,11 +817,9 @@
                             <i class="bi bi-diagram-3-fill"></i> Apply Routing
                         </button>
                         {% endif %}
-                        {% if task_templates and task_templates|length > 0 %}
                         <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyTemplateModal">
                             <i class="bi bi-file-earmark-plus"></i> Apply Template
                         </button>
-                        {% endif %}
                         <a href="{{ url_for('task_routes.create_task', wo_id=workorder.id) }}" class="btn btn-success btn-sm">
                             <i class="bi bi-plus-circle"></i> Add Task
                         </a>
@@ -2668,7 +2666,6 @@
 {% endif %}
 
 <!-- ── Apply Task Template Modal ────────────────────────────────────────── -->
-{% if task_templates and task_templates|length > 0 %}
 <div class="modal fade" id="applyTemplateModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -2679,6 +2676,22 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    {% if not task_templates or task_templates|length == 0 %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-file-earmark-plus display-4 text-muted mb-3 d-block"></i>
+                        <h5 class="fw-bold mb-2">No Task Templates Yet</h5>
+                        <p class="text-muted mb-4">Task templates let you apply a predefined set of tasks to any work order in one click. Create your first template to get started.</p>
+                        <a href="{{ url_for('task_template_routes.create_template') }}" target="_blank" class="btn btn-primary me-2">
+                            <i class="bi bi-plus-circle me-1"></i>Create a Template
+                        </a>
+                        <a href="{{ url_for('task_template_routes.list_templates') }}" target="_blank" class="btn btn-outline-secondary">
+                            <i class="bi bi-list-ul me-1"></i>Manage Templates
+                        </a>
+                        <div class="mt-3 text-muted small">
+                            <i class="bi bi-info-circle me-1"></i>Templates open in a new tab — return here to apply once created.
+                        </div>
+                    </div>
+                    {% else %}
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Select Template <span class="text-danger">*</span></label>
                         <select class="form-select" name="template_id" id="templateSelect" required onchange="previewTemplate(this.value)">
@@ -2688,6 +2701,7 @@
                             {% endfor %}
                         </select>
                     </div>
+                    {% endif %}
 
                     <!-- Summary bar -->
                     <div id="templateSummaryBar" class="d-none alert alert-info py-2 mb-3 d-flex gap-4 flex-wrap align-items-center">
@@ -2810,21 +2824,26 @@
                         <div class="small text-muted mt-1">Loading template details...</div>
                     </div>
 
+                    {% if task_templates and task_templates|length > 0 %}
                     <div class="alert alert-secondary py-2 mt-3 mb-0 small">
                         <i class="bi bi-info-circle me-1"></i> Tasks are appended after any existing tasks on this work order.
                     </div>
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {% if task_templates and task_templates|length > 0 %}Cancel{% else %}Close{% endif %}
+                    </button>
+                    {% if task_templates and task_templates|length > 0 %}
                     <button type="submit" id="applyTemplateBtn" class="btn btn-primary" disabled>
                         <i class="bi bi-check-lg me-1"></i>Apply Template
                     </button>
+                    {% endif %}
                 </div>
             </form>
         </div>
     </div>
 </div>
-{% endif %}
 
 <script>
 // ── Master Routing preview ──────────────────────────────────────────────────
@@ -2982,20 +3001,20 @@ function previewTemplate(templateId) {
     const emptyMsg = document.getElementById('templateEmptyMsg');
     const btn = document.getElementById('applyTemplateBtn');
 
-    container.classList.add('d-none');
-    summaryBar.classList.add('d-none');
-    emptyMsg.classList.add('d-none');
-    btn.disabled = true;
+    if (container) container.classList.add('d-none');
+    if (summaryBar) summaryBar.classList.add('d-none');
+    if (emptyMsg) emptyMsg.classList.add('d-none');
+    if (btn) btn.disabled = true;
     _currentTemplateId = null;
 
     if (!templateId) return;
     _currentTemplateId = templateId;
 
-    spinner.classList.remove('d-none');
+    if (spinner) spinner.classList.remove('d-none');
     fetch(`/api/task-template/${templateId}/preview`)
         .then(r => r.json())
         .then(data => {
-            spinner.classList.add('d-none');
+            if (spinner) spinner.classList.add('d-none');
             if (data.error) { alert('Error: ' + data.error); return; }
 
             // Store template name for inline add pre-fill
@@ -3003,38 +3022,45 @@ function previewTemplate(templateId) {
 
             if (!data.items || data.items.length === 0) {
                 // Show empty message with edit link — still allow apply (server handles gracefully)
-                document.getElementById('tplEditLink').href = `/task-templates/${templateId}/edit`;
-                document.getElementById('tplName').textContent = data.template.name || 'this template';
-                emptyMsg.classList.remove('d-none');
-                btn.disabled = true;   // Can't apply an empty template — guide user to add tasks
+                const tplEditLink = document.getElementById('tplEditLink');
+                const tplName = document.getElementById('tplName');
+                if (tplEditLink) tplEditLink.href = `/task-templates/${templateId}/edit`;
+                if (tplName) tplName.textContent = data.template.name || 'this template';
+                if (emptyMsg) emptyMsg.classList.remove('d-none');
+                if (btn) btn.disabled = true;
                 return;
             }
 
-            document.getElementById('tsTasks').textContent = data.summary.total_tasks;
-            document.getElementById('tsHours').textContent = data.summary.total_planned_hours.toFixed(1);
-            document.getElementById('tsDesc').textContent = data.template.description || '';
-            summaryBar.classList.remove('d-none');
+            const tsTasks = document.getElementById('tsTasks');
+            const tsHours = document.getElementById('tsHours');
+            const tsDesc = document.getElementById('tsDesc');
+            if (tsTasks) tsTasks.textContent = data.summary.total_tasks;
+            if (tsHours) tsHours.textContent = data.summary.total_planned_hours.toFixed(1);
+            if (tsDesc) tsDesc.textContent = data.template.description || '';
+            if (summaryBar) summaryBar.classList.remove('d-none');
 
             const PRIORITY_COLOR = {Critical:'danger', High:'warning', Medium:'info', Low:'success'};
             const tbody = document.getElementById('templatePreviewBody');
-            tbody.innerHTML = '';
-            data.items.forEach(it => {
-                const pColor = PRIORITY_COLOR[it.priority] || 'secondary';
-                tbody.innerHTML += `<tr>
-                    <td class="text-center">${it.sequence || '—'}</td>
-                    <td><strong>${it.name}</strong>
-                        ${it.description ? `<br><small class="text-muted">${it.description.substring(0,80)}${it.description.length>80?'…':''}</small>` : ''}</td>
-                    <td><small>${it.category || '—'}</small></td>
-                    <td><span class="badge bg-${pColor}">${it.priority}</span></td>
-                    <td class="text-center">${it.planned_hours > 0 ? it.planned_hours.toFixed(1) + 'h' : '—'}</td>
-                    <td><small class="text-muted">${it.remarks || '—'}</small></td>
-                </tr>`;
-            });
+            if (tbody) {
+                tbody.innerHTML = '';
+                data.items.forEach(it => {
+                    const pColor = PRIORITY_COLOR[it.priority] || 'secondary';
+                    tbody.innerHTML += `<tr>
+                        <td class="text-center">${it.sequence || '—'}</td>
+                        <td><strong>${it.name}</strong>
+                            ${it.description ? `<br><small class="text-muted">${it.description.substring(0,80)}${it.description.length>80?'…':''}</small>` : ''}</td>
+                        <td><small>${it.category || '—'}</small></td>
+                        <td><span class="badge bg-${pColor}">${it.priority}</span></td>
+                        <td class="text-center">${it.planned_hours > 0 ? it.planned_hours.toFixed(1) + 'h' : '—'}</td>
+                        <td><small class="text-muted">${it.remarks || '—'}</small></td>
+                    </tr>`;
+                });
+            }
 
-            container.classList.remove('d-none');
-            btn.disabled = false;
+            if (container) container.classList.remove('d-none');
+            if (btn) btn.disabled = false;
         })
-        .catch(() => { spinner.classList.add('d-none'); });
+        .catch(() => { if (spinner) spinner.classList.add('d-none'); });
 }
 </script>
 

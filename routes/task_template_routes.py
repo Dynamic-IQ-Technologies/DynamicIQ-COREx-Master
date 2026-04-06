@@ -308,7 +308,7 @@ def add_template_item_json(template_id):
     db = Database()
     conn = db.get_connection()
     try:
-        template = conn.execute('SELECT id FROM task_templates WHERE id = ?', (template_id,)).fetchone()
+        template = conn.execute('SELECT id FROM task_templates WHERE id = %s', (template_id,)).fetchone()
         if not template:
             return jsonify({'success': False, 'message': 'Template not found'}), 404
 
@@ -326,11 +326,11 @@ def add_template_item_json(template_id):
         conn.execute('''
             INSERT INTO task_template_items
             (template_id, task_name, description, category, sequence_number, priority, planned_hours, remarks)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ''', (template_id, task_name, description, category, sequence_number, priority, planned_hours, remarks))
         conn.commit()
 
-        count = conn.execute('SELECT COUNT(*) AS c FROM task_template_items WHERE template_id = ?', (template_id,)).fetchone()['c']
+        count = conn.execute('SELECT COUNT(*) AS c FROM task_template_items WHERE template_id = %s', (template_id,)).fetchone()['c']
         return jsonify({'success': True, 'message': 'Task added', 'total_items': count})
     except Exception as e:
         conn.rollback()
