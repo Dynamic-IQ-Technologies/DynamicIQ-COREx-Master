@@ -2,6 +2,31 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models import Database, GLAutoPost
 from auth import login_required, role_required
 from datetime import datetime, date
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+def get_local_now(conn=None):
+    """Return current datetime in the company's configured timezone (falls back to UTC)."""
+    tz_str = 'UTC'
+    try:
+        close_after = False
+        if conn is None:
+            from models import Database
+            db = Database()
+            conn = db.get_connection()
+            close_after = True
+        row = conn.execute("SELECT timezone FROM company_settings WHERE id = 1").fetchone()
+        if row and row['timezone']:
+            tz_str = row['timezone']
+        if close_after:
+            conn.close()
+    except Exception:
+        pass
+    try:
+        tz = ZoneInfo(tz_str)
+    except (ZoneInfoNotFoundError, Exception):
+        tz = ZoneInfo('UTC')
+    return datetime.now(tz).replace(tzinfo=None)
 
 
 def parse_datetime(value):
@@ -163,7 +188,7 @@ def clock_in():
         
         entry_number = f'CLK-{next_number:06d}'
         
-        clock_in_time = datetime.now().isoformat()
+        clock_in_time = get_local_now(conn).isoformat()
         
         conn.execute('''
             INSERT INTO work_order_time_tracking 
@@ -236,7 +261,7 @@ def clock_out(entry_id):
             flash('This entry is already clocked out.', 'warning')
             return redirect(url_for('time_tracking_routes.time_tracking_page'))
         
-        clock_out_time = datetime.now()
+        clock_out_time = get_local_now(conn)
         clock_in_time = parse_datetime(entry['clock_in_time'])
         
         # Calculate hours worked
@@ -382,7 +407,7 @@ def active_labor_report():
     current_labor_cost = 0
     for entry in active_entries:
         clock_in = parse_datetime(entry['clock_in_time'])
-        elapsed_hours = (datetime.now() - clock_in).total_seconds() / 3600
+        elapsed_hours = (get_local_now() - clock_in).total_seconds() / 3600
         current_labor_cost += elapsed_hours * entry['hourly_rate']
     
     conn.close()
@@ -641,7 +666,7 @@ def qr_clock_in(wo_id):
             next_number = 1
 
         entry_number = f'CLK-{next_number:06d}'
-        clock_in_time = datetime.now().isoformat()
+        clock_in_time = get_local_now(conn).isoformat()
 
         conn.execute('''
             INSERT INTO work_order_time_tracking
@@ -721,7 +746,7 @@ def qr_clock_out(entry_id):
 
         _perform_clock_out(conn, entry, notes, None)
         conn.commit()
-        hours_worked = (datetime.now() - parse_datetime(entry['clock_in_time'])).total_seconds() / 3600
+        hours_worked = (get_local_now() - parse_datetime(entry['clock_in_time'])).total_seconds() / 3600
         flash(f'Clocked out successfully! Hours worked: {hours_worked:.2f}', 'success')
 
     except Exception as e:
@@ -736,7 +761,7 @@ def qr_clock_out(entry_id):
 def _perform_clock_out(conn, entry, notes, user_id):
     """Shared clock-out logic used by the QR station and the 5 PM auto clock-out."""
     import math as _math
-    clock_out_time = datetime.now()
+    clock_out_time = get_local_now(conn)
     clock_in_time = parse_datetime(entry['clock_in_time'])
     hours_worked = (clock_out_time - clock_in_time).total_seconds() / 3600
     if not _math.isfinite(hours_worked) or hours_worked < 0:

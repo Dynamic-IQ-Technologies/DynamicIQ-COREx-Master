@@ -1710,6 +1710,11 @@ class Database:
                 cursor.execute('ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS auto_clock_out_minute INTEGER DEFAULT 0')
             except Exception:
                 pass
+        if 'timezone' not in cs_columns:
+            try:
+                cursor.execute("ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_York'")
+            except Exception:
+                pass
 
         # Add customer-supplier link columns to suppliers table for Exchange PO support
         supplier_columns = [row[1] for row in cursor.execute('PRAGMA table_info(suppliers)').fetchall()]
@@ -5748,6 +5753,7 @@ class CompanySettings:
                     target_industries = ?, key_differentiators = ?,
                     brevo_api_key = ?, brevo_from_email = ?, brevo_from_name = ?,
                     auto_clock_out_enabled = ?, auto_clock_out_hour = ?, auto_clock_out_minute = ?,
+                    timezone = ?,
                     updated_by = ?, last_updated = CURRENT_TIMESTAMP
                 WHERE id = 1
             ''', (
@@ -5766,6 +5772,7 @@ class CompanySettings:
                 data.get('auto_clock_out_enabled', 1),
                 data.get('auto_clock_out_hour', 17),
                 data.get('auto_clock_out_minute', 0),
+                data.get('timezone', 'America/New_York'),
                 user_id
             ))
         else:

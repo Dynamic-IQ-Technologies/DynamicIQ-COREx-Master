@@ -90,11 +90,39 @@
                             </div>
                         </div>
 
-                        <div class="alert alert-info py-2 small">
+                            <div class="alert alert-info py-2 small">
                             <i class="bi bi-info-circle me-1"></i>
-                            The auto clock-out runs once a day at the specified server time. Notes on auto-clocked entries will read
+                            The auto clock-out runs once a day at the specified time in your company timezone. Notes on auto-clocked entries will read
                             <strong>"Auto clock-out at 5:00 PM"</strong> (or the configured time) so supervisors can identify them.
                         </div>
+                    </div>
+
+                    <!-- Timezone -->
+                    <div class="mb-3 mt-3">
+                        <label for="timezone" class="form-label fw-semibold">Company Timezone</label>
+                        <select class="form-select" id="timezone" name="timezone">
+                            {% set tz_current = settings.timezone if settings.timezone else 'America/New_York' %}
+                            {% for tz_val, tz_label in [
+                                ('America/New_York',    'Eastern Time (ET) — New York'),
+                                ('America/Chicago',     'Central Time (CT) — Chicago'),
+                                ('America/Denver',      'Mountain Time (MT) — Denver'),
+                                ('America/Phoenix',     'Mountain Time (no DST) — Phoenix'),
+                                ('America/Los_Angeles', 'Pacific Time (PT) — Los Angeles'),
+                                ('America/Anchorage',   'Alaska Time — Anchorage'),
+                                ('Pacific/Honolulu',    'Hawaii Time — Honolulu'),
+                                ('America/Puerto_Rico', 'Atlantic Time — Puerto Rico'),
+                                ('Europe/London',       'GMT / British Time — London'),
+                                ('Europe/Paris',        'Central European Time — Paris'),
+                                ('Asia/Dubai',          'Gulf Standard Time — Dubai'),
+                                ('Asia/Kolkata',        'India Standard Time — Mumbai'),
+                                ('Asia/Tokyo',          'Japan Standard Time — Tokyo'),
+                                ('Australia/Sydney',    'Australian Eastern Time — Sydney'),
+                                ('UTC',                 'UTC (Coordinated Universal Time)')
+                            ] %}
+                            <option value="{{ tz_val }}" {% if tz_val == tz_current %}selected{% endif %}>{{ tz_label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">All clock-in and clock-out timestamps will use this timezone.</div>
                     </div>
 
                     <div class="d-flex gap-2 mt-3">

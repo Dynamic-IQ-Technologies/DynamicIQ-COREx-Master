@@ -130,11 +130,14 @@ def time_tracking_settings():
             flash('Company settings not found.', 'danger')
             return redirect(url_for('settings_routes.time_tracking_settings'))
 
+        timezone = request.form.get('timezone', 'America/New_York').strip()
+
         # Build the full data dict (preserve all existing fields)
         data = {k: current[k] for k in current.keys()}
         data['auto_clock_out_enabled'] = enabled
         data['auto_clock_out_hour']    = hour
         data['auto_clock_out_minute']  = minute
+        data['timezone']               = timezone
 
         CompanySettings.create_or_update(data, user_id)
 
