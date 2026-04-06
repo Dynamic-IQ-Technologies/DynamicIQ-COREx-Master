@@ -651,6 +651,15 @@ def qr_clock_in(wo_id):
         ''', (entry_number, employee['id'], wo_id, task_id, clock_in_time,
               employee.get('hourly_rate', 0), notes, clock_in_time))
 
+        # Sync to time_clock_punches so the Manager Dashboard sees this clock-in
+        punch_count = conn.execute('SELECT COUNT(*) AS c FROM time_clock_punches').fetchone()['c']
+        punch_number = f'PUNCH-{punch_count + 1:07d}'
+        conn.execute('''
+            INSERT INTO time_clock_punches
+            (punch_number, employee_id, punch_type, punch_time, work_order_id, task_id, notes, created_at)
+            VALUES (%s, %s, 'Clock In', %s, %s, %s, %s, %s)
+        ''', (punch_number, employee['id'], clock_in_time, wo_id, task_id, notes, clock_in_time))
+
         conn.execute('''
             UPDATE work_orders SET status = 'In Progress', actual_start_date = CURRENT_DATE
             WHERE id = %s AND status = 'Released'
@@ -752,6 +761,19 @@ def _perform_clock_out(conn, entry, notes, user_id):
             SET actual_hours = actual_hours + ?, actual_labor_cost = actual_labor_cost + ?
             WHERE id = ?
         ''', (hours_worked, labor_cost, entry['task_id']))
+
+    # Sync to time_clock_punches so the Manager Dashboard sees this clock-out
+    try:
+        punch_count = conn.execute('SELECT COUNT(*) AS c FROM time_clock_punches').fetchone()['c']
+        punch_number = f'PUNCH-{punch_count + 1:07d}'
+        conn.execute('''
+            INSERT INTO time_clock_punches
+            (punch_number, employee_id, punch_type, punch_time, work_order_id, task_id, notes, created_at)
+            VALUES (?, ?, 'Clock Out', ?, ?, ?, ?, ?)
+        ''', (punch_number, entry['employee_id'], clock_out_time.isoformat(),
+              entry['work_order_id'], entry.get('task_id'), notes, clock_out_time.isoformat()))
+    except Exception:
+        pass
 
 
 def auto_clock_out_all(reason='Auto clock-out at 5:00 PM'):
