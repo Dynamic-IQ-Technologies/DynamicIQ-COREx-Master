@@ -509,6 +509,21 @@ def clock_reports():
                          total_hours=total_hours,
                          punches=punches)
 
+def _parse_ts(value):
+    """Parse a punch_time value that may be a datetime object (PostgreSQL) or a string (SQLite)."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    value = str(value)
+    for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S'):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
 def calculate_hours_from_punches(punches):
     """Calculate total hours from punch list"""
     total_hours = 0.0
@@ -516,11 +531,12 @@ def calculate_hours_from_punches(punches):
     
     for punch in punches:
         if punch['punch_type'] == 'Clock In':
-            clock_in_time = datetime.strptime(punch['punch_time'], '%Y-%m-%d %H:%M:%S')
+            clock_in_time = _parse_ts(punch['punch_time'])
         elif punch['punch_type'] == 'Clock Out' and clock_in_time:
-            clock_out_time = datetime.strptime(punch['punch_time'], '%Y-%m-%d %H:%M:%S')
-            hours = (clock_out_time - clock_in_time).total_seconds() / 3600
-            total_hours += hours
+            clock_out_time = _parse_ts(punch['punch_time'])
+            if clock_out_time:
+                hours = (clock_out_time - clock_in_time).total_seconds() / 3600
+                total_hours += hours
             clock_in_time = None
     
     # If still clocked in, calculate up to now
@@ -535,7 +551,8 @@ def calculate_daily_hours(punches):
     daily_data = {}
     
     for punch in punches:
-        punch_date = punch['punch_time'][:10]
+        pt = _parse_ts(punch['punch_time'])
+        punch_date = pt.strftime('%Y-%m-%d') if pt else str(punch['punch_time'])[:10]
         if punch_date not in daily_data:
             daily_data[punch_date] = {'date': punch_date, 'punches': [], 'hours': 0.0}
         daily_data[punch_date]['punches'].append(punch)
