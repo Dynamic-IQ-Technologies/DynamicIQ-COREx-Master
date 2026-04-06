@@ -1695,7 +1695,22 @@ class Database:
                 cursor.execute('ALTER TABLE company_settings ADD COLUMN key_differentiators TEXT')
             except sqlite3.OperationalError:
                 pass
-        
+        if 'auto_clock_out_enabled' not in cs_columns:
+            try:
+                cursor.execute('ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS auto_clock_out_enabled INTEGER DEFAULT 1')
+            except Exception:
+                pass
+        if 'auto_clock_out_hour' not in cs_columns:
+            try:
+                cursor.execute('ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS auto_clock_out_hour INTEGER DEFAULT 17')
+            except Exception:
+                pass
+        if 'auto_clock_out_minute' not in cs_columns:
+            try:
+                cursor.execute('ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS auto_clock_out_minute INTEGER DEFAULT 0')
+            except Exception:
+                pass
+
         # Add customer-supplier link columns to suppliers table for Exchange PO support
         supplier_columns = [row[1] for row in cursor.execute('PRAGMA table_info(suppliers)').fetchall()]
         if 'customer_link_id' not in supplier_columns:
@@ -5721,6 +5736,7 @@ class CompanySettings:
                     brand_accent_color = ?, brand_tone = ?, marketing_description = ?,
                     target_industries = ?, key_differentiators = ?,
                     brevo_api_key = ?, brevo_from_email = ?, brevo_from_name = ?,
+                    auto_clock_out_enabled = ?, auto_clock_out_hour = ?, auto_clock_out_minute = ?,
                     updated_by = ?, last_updated = CURRENT_TIMESTAMP
                 WHERE id = 1
             ''', (
@@ -5736,6 +5752,9 @@ class CompanySettings:
                 data.get('target_industries'), data.get('key_differentiators'),
                 data.get('brevo_api_key') or None, data.get('brevo_from_email') or None,
                 data.get('brevo_from_name') or None,
+                data.get('auto_clock_out_enabled', 1),
+                data.get('auto_clock_out_hour', 17),
+                data.get('auto_clock_out_minute', 0),
                 user_id
             ))
         else:

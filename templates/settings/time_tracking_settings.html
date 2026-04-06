@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Time Tracking Settings{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="bi bi-clock-history me-2 text-primary"></i>Time Tracking Settings</h2>
+        <p class="text-muted mb-0">Configure automatic clock-out rules and manage active sessions.</p>
+    </div>
+    <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to Settings
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else 'danger') }} alert-dismissible fade show">
+        <i class="bi bi-{{ 'check-circle' if category == 'success' else ('exclamation-triangle' if category == 'warning' else 'x-circle') }} me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endwith %}
+
+<div class="row g-4">
+
+    <!-- Auto Clock-Out Config -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-alarm text-primary fs-5"></i>
+                <h5 class="mb-0">Automatic Clock-Out</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="save">
+
+                    <!-- Enable / Disable toggle -->
+                    <div class="mb-4">
+                        <div class="form-check form-switch form-check-lg">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   id="auto_clock_out_enabled" name="auto_clock_out_enabled"
+                                   {% if settings.auto_clock_out_enabled != 0 %}checked{% endif %}
+                                   onchange="toggleTimeFields(this.checked)">
+                            <label class="form-check-label fw-semibold fs-6" for="auto_clock_out_enabled">
+                                Enable automatic daily clock-out
+                            </label>
+                        </div>
+                        <div class="form-text ms-1">
+                            When enabled, all employees still clocked in will be automatically clocked out at the configured time every day.
+                        </div>
+                    </div>
+
+                    <!-- Time picker -->
+                    <div id="timeFields" {% if settings.auto_clock_out_enabled == 0 %}style="opacity:.45; pointer-events:none;"{% endif %}>
+                        <label class="form-label fw-semibold">Clock-Out Time</label>
+                        <div class="row g-3 align-items-end mb-2">
+                            <div class="col-sm-4">
+                                <label for="auto_clock_out_hour" class="form-label text-muted small">Hour (0–23)</label>
+                                <input type="number" class="form-control form-control-lg text-center"
+                                       id="auto_clock_out_hour" name="auto_clock_out_hour"
+                                       min="0" max="23"
+                                       value="{{ settings.auto_clock_out_hour if settings.auto_clock_out_hour is not none else 17 }}">
+                            </div>
+                            <div class="col-auto pb-2 fs-4 text-muted">:</div>
+                            <div class="col-sm-4">
+                                <label for="auto_clock_out_minute" class="form-label text-muted small">Minute (0–59)</label>
+                                <input type="number" class="form-control form-control-lg text-center"
+                                       id="auto_clock_out_minute" name="auto_clock_out_minute"
+                                       min="0" max="59" step="5"
+                                       value="{{ settings.auto_clock_out_minute if settings.auto_clock_out_minute is not none else 0 }}">
+                            </div>
+                            <div class="col-sm-auto pb-2">
+                                <span class="badge bg-primary fs-6 px-3 py-2" id="timePreview">
+                                    {{ '%02d:%02d' | format(
+                                        settings.auto_clock_out_hour if settings.auto_clock_out_hour is not none else 17,
+                                        settings.auto_clock_out_minute if settings.auto_clock_out_minute is not none else 0
+                                    ) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Common presets -->
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-2">Quick presets:</small>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for label, h, m in [('4:00 PM', 16, 0), ('4:30 PM', 16, 30), ('5:00 PM', 17, 0), ('5:30 PM', 17, 30), ('6:00 PM', 18, 0), ('Midnight', 0, 0)] %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary preset-btn"
+                                        data-hour="{{ h }}" data-minute="{{ m }}">{{ label }}</button>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info py-2 small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            The auto clock-out runs once a day at the specified server time. Notes on auto-clocked entries will read
+                            <strong>"Auto clock-out at 5:00 PM"</strong> (or the configured time) so supervisors can identify them.
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-floppy me-1"></i> Save Settings
+                        </button>
+                        <a href="{{ url_for('settings_routes.view_company_settings') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Sessions Panel -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-people text-success fs-5"></i>
+                <h5 class="mb-0">Active Clock-Ins</h5>
+                <span class="badge {{ 'bg-success' if active_count > 0 else 'bg-secondary' }} ms-auto">
+                    {{ active_count }} active
+                </span>
+            </div>
+            <div class="card-body">
+                {% if active_count > 0 %}
+                <p class="text-muted small mb-3">
+                    <strong>{{ active_count }}</strong> employee{{ 's are' if active_count != 1 else ' is' }} currently clocked in.
+                    Use the button below to immediately clock everyone out.
+                </p>
+                <form method="POST" onsubmit="return confirm('This will immediately clock out all {{ active_count }} active employee{{ 's' if active_count != 1 else '' }}. Continue?');">
+                    <input type="hidden" name="action" value="clock_out_now">
+                    <button type="submit" class="btn btn-danger w-100">
+                        <i class="bi bi-stop-circle me-2"></i>Clock Out All Now
+                    </button>
+                </form>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="bi bi-check-circle-fill text-success fs-1 d-block mb-2"></i>
+                    No employees are currently clocked in.
+                </div>
+                {% endif %}
+
+                <hr class="my-3">
+
+                <a href="{{ url_for('time_tracking_routes.supervisor_view') }}" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-speedometer2 me-1"></i> Open Supervisor Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Current Schedule Summary -->
+        <div class="card shadow-sm mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-calendar-check me-2 text-secondary"></i>Current Schedule</h6>
+            </div>
+            <div class="card-body py-3">
+                <div class="row text-center g-0">
+                    <div class="col-6 border-end">
+                        <div class="text-muted small">Status</div>
+                        {% if settings.auto_clock_out_enabled != 0 %}
+                        <span class="badge bg-success mt-1 px-3">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary mt-1 px-3">Disabled</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small">Scheduled At</div>
+                        <strong class="d-block mt-1 fs-5">
+                            {% set h = settings.auto_clock_out_hour if settings.auto_clock_out_hour is not none else 17 %}
+                            {% set m = settings.auto_clock_out_minute if settings.auto_clock_out_minute is not none else 0 %}
+                            {% set ampm = 'PM' if h >= 12 else 'AM' %}
+                            {% set h12 = (h % 12) or 12 %}
+                            {{ '%d:%02d %s' | format(h12, m, ampm) }}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function toggleTimeFields(enabled) {
+    var fields = document.getElementById('timeFields');
+    fields.style.opacity = enabled ? '1' : '0.45';
+    fields.style.pointerEvents = enabled ? '' : 'none';
+}
+
+function updatePreview() {
+    var h = parseInt(document.getElementById('auto_clock_out_hour').value) || 0;
+    var m = parseInt(document.getElementById('auto_clock_out_minute').value) || 0;
+    h = Math.max(0, Math.min(23, h));
+    m = Math.max(0, Math.min(59, m));
+    document.getElementById('timePreview').textContent =
+        String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+document.getElementById('auto_clock_out_hour').addEventListener('input', updatePreview);
+document.getElementById('auto_clock_out_minute').addEventListener('input', updatePreview);
+
+document.querySelectorAll('.preset-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.getElementById('auto_clock_out_hour').value   = this.dataset.hour;
+        document.getElementById('auto_clock_out_minute').value = this.dataset.minute;
+        updatePreview();
+    });
+});
+</script>
+{% endblock %}

@@ -652,18 +652,51 @@ def initialize_application():
 
 initialize_application()
 
-# ── 5 PM Auto Clock-Out Scheduler ────────────────────────────────────────────
+# ── Auto Clock-Out Scheduler ──────────────────────────────────────────────────
+_scheduler = None
+
+def reschedule_auto_clock_out(enabled, hour, minute):
+    """Reschedule (or remove) the auto clock-out job. Called from settings route."""
+    global _scheduler
+    if _scheduler is None:
+        return
+    try:
+        _scheduler.remove_job('auto_clock_out_5pm')
+    except Exception:
+        pass
+    if enabled:
+        from routes.time_tracking_routes import auto_clock_out_all
+        _scheduler.add_job(
+            auto_clock_out_all,
+            trigger=CronTrigger(hour=hour, minute=minute, second=0),
+            id='auto_clock_out_5pm',
+            replace_existing=True
+        )
+        print(f'[Scheduler] Auto clock-out rescheduled to {hour:02d}:{minute:02d}.')
+    else:
+        print('[Scheduler] Auto clock-out disabled.')
+
 try:
     from routes.time_tracking_routes import auto_clock_out_all
+    from models import CompanySettings as _CS
+    _cs = _CS.get_or_create_default()
+    _aco_enabled = (_cs['auto_clock_out_enabled'] if _cs and 'auto_clock_out_enabled' in _cs.keys() else 1) or 1
+    _aco_hour    = (_cs['auto_clock_out_hour']    if _cs and 'auto_clock_out_hour'    in _cs.keys() else 17) or 17
+    _aco_minute  = (_cs['auto_clock_out_minute']  if _cs and 'auto_clock_out_minute'  in _cs.keys() else 0)
+    if _aco_minute is None:
+        _aco_minute = 0
+
     _scheduler = BackgroundScheduler(daemon=True)
-    _scheduler.add_job(
-        auto_clock_out_all,
-        trigger=CronTrigger(hour=17, minute=0, second=0),
-        id='auto_clock_out_5pm',
-        replace_existing=True
-    )
+    if _aco_enabled:
+        _scheduler.add_job(
+            auto_clock_out_all,
+            trigger=CronTrigger(hour=_aco_hour, minute=_aco_minute, second=0),
+            id='auto_clock_out_5pm',
+            replace_existing=True
+        )
     _scheduler.start()
-    print('[Scheduler] Auto clock-out at 5:00 PM daily — scheduled.')
+    _status = f'{_aco_hour:02d}:{_aco_minute:02d}' if _aco_enabled else 'disabled'
+    print(f'[Scheduler] Auto clock-out scheduler started — {_status}.')
 except Exception as _sched_err:
     print(f'[Scheduler] Could not start auto clock-out scheduler: {_sched_err}')
 

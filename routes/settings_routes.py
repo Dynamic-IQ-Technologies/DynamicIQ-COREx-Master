@@ -95,6 +95,78 @@ def edit_accounting_preferences():
     settings = CompanySettings.get_or_create_default()
     return render_template('settings/edit_accounting_preferences.html', settings=settings)
 
+
+@settings_bp.route('/settings/time-tracking', methods=['GET', 'POST'])
+@role_required('Admin')
+def time_tracking_settings():
+    """View and edit auto clock-out settings."""
+    from flask import session as flask_session
+    user_id = flask_session.get('user_id')
+
+    if request.method == 'POST':
+        action = request.form.get('action', 'save')
+
+        # Immediate manual clock-out of all active entries
+        if action == 'clock_out_now':
+            try:
+                from routes.time_tracking_routes import auto_clock_out_all
+                auto_clock_out_all(reason='Manual clock-out triggered from Settings')
+                flash('All active clock-ins have been clocked out.', 'success')
+            except Exception as e:
+                flash(f'Error during manual clock-out: {str(e)}', 'danger')
+            return redirect(url_for('settings_routes.time_tracking_settings'))
+
+        # Save settings
+        enabled = 1 if request.form.get('auto_clock_out_enabled') else 0
+        hour   = int(request.form.get('auto_clock_out_hour', 17))
+        minute = int(request.form.get('auto_clock_out_minute', 0))
+
+        # Clamp to valid ranges
+        hour   = max(0, min(23, hour))
+        minute = max(0, min(59, minute))
+
+        current = CompanySettings.get()
+        if not current:
+            flash('Company settings not found.', 'danger')
+            return redirect(url_for('settings_routes.time_tracking_settings'))
+
+        # Build the full data dict (preserve all existing fields)
+        data = {k: current[k] for k in current.keys()}
+        data['auto_clock_out_enabled'] = enabled
+        data['auto_clock_out_hour']    = hour
+        data['auto_clock_out_minute']  = minute
+
+        CompanySettings.create_or_update(data, user_id)
+
+        # Reschedule the background job
+        try:
+            import app as _app_module
+            _app_module.reschedule_auto_clock_out(enabled, hour, minute)
+        except Exception as e:
+            flash(f'Settings saved, but scheduler could not be updated: {str(e)}', 'warning')
+        else:
+            if enabled:
+                flash(f'Auto clock-out set to {hour:02d}:{minute:02d} daily.', 'success')
+            else:
+                flash('Auto clock-out has been disabled.', 'success')
+
+        return redirect(url_for('settings_routes.time_tracking_settings'))
+
+    settings = CompanySettings.get_or_create_default()
+
+    # Count currently active clock-ins
+    db = Database()
+    conn = db.get_connection()
+    active_count = conn.execute(
+        "SELECT COUNT(*) FROM work_order_time_tracking WHERE status = 'In Progress'"
+    ).fetchone()[0]
+    conn.close()
+
+    return render_template('settings/time_tracking_settings.html',
+                           settings=settings,
+                           active_count=active_count)
+
+
 @settings_bp.route('/settings/company/edit', methods=['GET', 'POST'])
 @role_required('Admin')
 def edit_company_settings():
