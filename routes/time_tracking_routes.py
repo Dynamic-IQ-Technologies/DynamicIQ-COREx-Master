@@ -270,9 +270,15 @@ def clock_out(entry_id):
         
         if not math.isfinite(hours_worked) or hours_worked < 0:
             hours_worked = 0
-        
+
+        # Fetch hourly_rate directly — avoids naming collision when tt.* shadows lr.hourly_rate
+        rate_row = conn.execute(
+            'SELECT hourly_rate FROM labor_resources WHERE id = ?', (entry['employee_id'],)
+        ).fetchone()
+        hourly_rate = float(rate_row['hourly_rate'] or 0) if rate_row else 0
+
         # Calculate labor cost
-        labor_cost = hours_worked * entry['hourly_rate']
+        labor_cost = hours_worked * hourly_rate
         
         # Update time tracking entry
         conn.execute('''
@@ -766,7 +772,12 @@ def _perform_clock_out(conn, entry, notes, user_id):
     hours_worked = (clock_out_time - clock_in_time).total_seconds() / 3600
     if not _math.isfinite(hours_worked) or hours_worked < 0:
         hours_worked = 0
-    labor_cost = hours_worked * (entry['hourly_rate'] or 0)
+    # Fetch hourly_rate directly — avoids naming collision when tt.* shadows lr.hourly_rate in JOINs
+    rate_row = conn.execute(
+        'SELECT hourly_rate FROM labor_resources WHERE id = ?', (entry['employee_id'],)
+    ).fetchone()
+    hourly_rate = float(rate_row['hourly_rate'] or 0) if rate_row else float(entry.get('hourly_rate') or 0)
+    labor_cost = hours_worked * hourly_rate
 
     conn.execute('''
         UPDATE work_order_time_tracking
