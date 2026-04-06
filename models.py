@@ -340,6 +340,7 @@ class PostgresConnection:
         self._pool = pool
         self._cursor = None
         self._last_insert_id = None
+        self._closed = False
     
     def cursor(self):
         """Return a wrapped cursor object that applies SQL translation"""
@@ -719,6 +720,9 @@ class PostgresConnection:
         self._conn.rollback()
     
     def close(self):
+        if self._closed:
+            return
+        self._closed = True
         try:
             self._conn.rollback()
         except Exception:
@@ -736,6 +740,17 @@ class PostgresConnection:
                 self._conn.close()
             except Exception:
                 pass
+
+    def __del__(self):
+        """Safety net: return connection to pool when object is garbage-collected.
+        In CPython, reference counting ensures this fires immediately when the
+        local 'conn' variable in a route function goes out of scope — even if the
+        route raised an exception and never called conn.close() explicitly.
+        This prevents pool exhaustion from routes that lack try/finally guards."""
+        try:
+            self.close()
+        except Exception:
+            pass
 
 class PostgresCursor:
     """Wrapper for psycopg2 cursor to provide sqlite3-like interface"""
