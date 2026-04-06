@@ -308,6 +308,125 @@ def view_bom_hierarchy(product_id):
                          hierarchy=hierarchy,
                          summary=summary)
 
+@bom_bp.route('/boms/manage/<int:product_id>', methods=['GET', 'POST'])
+@role_required('Admin', 'Planner')
+def manage_bom(product_id):
+    db = Database()
+    conn = db.get_connection()
+
+    parent = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+    if not parent:
+        flash('Product not found.', 'danger')
+        conn.close()
+        return redirect(url_for('bom_routes.list_boms'))
+
+    if request.method == 'POST':
+        # --- Update / delete existing lines ---
+        existing_ids_raw = request.form.get('line_ids', '')
+        existing_ids = [int(x) for x in existing_ids_raw.split(',') if x.strip()]
+
+        for lid in existing_ids:
+            if request.form.get(f'delete_{lid}'):
+                conn.execute('DELETE FROM boms WHERE id = ?', (lid,))
+                AuditLogger.log_change(conn, 'bom', lid, 'DELETE', session.get('user_id'), {})
+            else:
+                qty = float(request.form.get(f'qty_{lid}', 1))
+                scrap = float(request.form.get(f'scrap_{lid}', 0))
+                child_cost_row = conn.execute(
+                    'SELECT cost FROM products WHERE id = (SELECT child_product_id FROM boms WHERE id = ?)', (lid,)
+                ).fetchone()
+                child_cost = child_cost_row['cost'] if child_cost_row and child_cost_row['cost'] else 0
+                conn.execute('''
+                    UPDATE boms SET quantity=?, scrap_percentage=?, find_number=?,
+                        category=?, revision=?, status=?, notes=?,
+                        effectivity_date=?, reference_designator=?, document_link=?,
+                        unit_cost=?, extended_cost=?
+                    WHERE id=?
+                ''', (
+                    qty,
+                    scrap,
+                    request.form.get(f'find_{lid}', ''),
+                    request.form.get(f'cat_{lid}', 'Other'),
+                    request.form.get(f'rev_{lid}', 'A'),
+                    request.form.get(f'status_{lid}', 'Active'),
+                    request.form.get(f'notes_{lid}', ''),
+                    request.form.get(f'effdate_{lid}') or None,
+                    request.form.get(f'refdes_{lid}', ''),
+                    request.form.get(f'doclink_{lid}', ''),
+                    child_cost,
+                    qty * child_cost,
+                    lid
+                ))
+                AuditLogger.log_change(conn, 'bom', lid, 'UPDATE', session.get('user_id'),
+                                       {'quantity': qty, 'status': request.form.get(f'status_{lid}')})
+
+        # --- Add new lines ---
+        new_count = int(request.form.get('new_count', 0))
+        for n in range(new_count):
+            child_id_str = request.form.get(f'new_child_{n}', '').strip()
+            if not child_id_str:
+                continue
+            child_id = int(child_id_str)
+            # skip if duplicate
+            dup = conn.execute(
+                'SELECT id FROM boms WHERE parent_product_id=? AND child_product_id=?',
+                (product_id, child_id)
+            ).fetchone()
+            if dup:
+                child_code = conn.execute('SELECT code FROM products WHERE id=?', (child_id,)).fetchone()
+                flash(f'Component {child_code["code"] if child_code else child_id} already exists in this BOM — skipped.', 'warning')
+                continue
+            qty = float(request.form.get(f'new_qty_{n}', 1))
+            child_cost_row = conn.execute('SELECT cost FROM products WHERE id=?', (child_id,)).fetchone()
+            child_cost = child_cost_row['cost'] if child_cost_row and child_cost_row['cost'] else 0
+            auto_find = BOMHierarchy.get_next_find_number(product_id)
+            conn.execute('''
+                INSERT INTO boms (parent_product_id, child_product_id, quantity, scrap_percentage,
+                    find_number, category, revision, effectivity_date, status,
+                    reference_designator, document_link, notes, unit_cost, extended_cost)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ''', (
+                product_id, child_id, qty,
+                float(request.form.get(f'new_scrap_{n}', 0)),
+                request.form.get(f'new_find_{n}') or auto_find,
+                request.form.get(f'new_cat_{n}', 'Other'),
+                request.form.get(f'new_rev_{n}', 'A'),
+                request.form.get(f'new_effdate_{n}') or None,
+                request.form.get(f'new_status_{n}', 'Active'),
+                request.form.get(f'new_refdes_{n}', ''),
+                request.form.get(f'new_doclink_{n}', ''),
+                request.form.get(f'new_notes_{n}', ''),
+                child_cost,
+                qty * child_cost,
+            ))
+            new_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            AuditLogger.log_change(conn, 'bom', new_id, 'CREATE', session.get('user_id'),
+                                   {'parent_id': product_id, 'child_id': child_id, 'quantity': qty})
+
+        conn.commit()
+        conn.close()
+        flash('BOM saved successfully.', 'success')
+        return redirect(url_for('bom_routes.manage_bom', product_id=product_id))
+
+    # GET
+    lines = conn.execute('''
+        SELECT b.*, p.code as child_code, p.name as child_name
+        FROM boms b
+        JOIN products p ON b.child_product_id = p.id
+        WHERE b.parent_product_id = ?
+        ORDER BY b.find_number, b.id
+    ''', (product_id,)).fetchall()
+    lines = [dict(r) for r in lines]
+
+    all_products = conn.execute('SELECT id, code, name FROM products ORDER BY code').fetchall()
+    conn.close()
+    return render_template('boms/manage.html',
+        parent=dict(parent),
+        lines=lines,
+        all_products=all_products
+    )
+
+
 @bom_bp.route('/boms/<int:id>/edit', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner')
 def edit_bom(id):

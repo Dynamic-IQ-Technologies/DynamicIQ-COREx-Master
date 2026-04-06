@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Edit BOM – {{ parent.code }} | Dynamic.IQ.MRP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">Edit Bill of Materials</h2>
+        <p class="text-muted mb-0">
+            <strong class="text-primary">{{ parent.code }}</strong> — {{ parent.name }}
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('bom_routes.view_bom_hierarchy', product_id=parent.id) }}" class="btn btn-outline-info me-2">
+            <i class="bi bi-diagram-3"></i> View Hierarchy
+        </a>
+        <a href="{{ url_for('bom_routes.list_boms') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to BOM List
+        </a>
+    </div>
+</div>
+
+<form method="POST" id="bomForm">
+    <input type="hidden" name="line_ids" id="line_ids" value="{{ lines | map(attribute='id') | join(',') }}">
+    <input type="hidden" name="new_count" id="new_count" value="0">
+
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-list-ul"></i> Components ({{ lines | length }})</span>
+            <button type="button" class="btn btn-sm btn-success" onclick="addRow()">
+                <i class="bi bi-plus-circle"></i> Add Component
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle" id="bomTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width:60px">Find #</th>
+                            <th>Component</th>
+                            <th style="width:90px">Qty</th>
+                            <th style="width:80px">Scrap %</th>
+                            <th style="width:110px">Category</th>
+                            <th style="width:70px">Rev</th>
+                            <th style="width:90px">Status</th>
+                            <th style="width:80px">Eff. Date</th>
+                            <th>Ref. Des.</th>
+                            <th>Notes</th>
+                            <th style="width:50px" class="text-center">Del</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bomBody">
+                        {% for line in lines %}
+                        <tr id="row_{{ line.id }}">
+                            <td>
+                                <input type="text" class="form-control form-control-sm" name="find_{{ line.id }}"
+                                    value="{{ line.find_number or '' }}" style="width:55px">
+                            </td>
+                            <td>
+                                <span class="fw-semibold text-primary">{{ line.child_code }}</span>
+                                <span class="text-muted small"> — {{ line.child_name }}</span>
+                            </td>
+                            <td>
+                                <input type="number" step="0.001" min="0.001" class="form-control form-control-sm"
+                                    name="qty_{{ line.id }}" value="{{ line.quantity }}" required style="width:80px">
+                            </td>
+                            <td>
+                                <input type="number" step="0.01" min="0" class="form-control form-control-sm"
+                                    name="scrap_{{ line.id }}" value="{{ line.scrap_percentage or 0 }}" style="width:70px">
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" name="cat_{{ line.id }}">
+                                    {% for cat in ['Other','Electrical','Mechanical','Hardware','Consumable','Subassembly'] %}
+                                    <option value="{{ cat }}" {% if line.category == cat %}selected{% endif %}>{{ cat }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" name="rev_{{ line.id }}"
+                                    value="{{ line.revision or 'A' }}" style="width:55px">
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" name="status_{{ line.id }}">
+                                    {% for s in ['Active','Pending','Obsolete'] %}
+                                    <option value="{{ s }}" {% if line.status == s %}selected{% endif %}>{{ s }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="date" class="form-control form-control-sm" name="effdate_{{ line.id }}"
+                                    value="{{ line.effectivity_date or '' }}">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" name="refdes_{{ line.id }}"
+                                    value="{{ line.reference_designator or '' }}" placeholder="R1, C2…">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" name="notes_{{ line.id }}"
+                                    value="{{ line.notes or '' }}" placeholder="Notes">
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check d-flex justify-content-center">
+                                    <input class="form-check-input border-danger" type="checkbox"
+                                        name="delete_{{ line.id }}" value="1"
+                                        onclick="toggleDeleteRow(this, 'row_{{ line.id }}')"
+                                        title="Mark for deletion">
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="newRowsCard" class="card mb-3" style="display:none">
+        <div class="card-header bg-success text-white">
+            <i class="bi bi-plus-circle"></i> New Components
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-success">
+                        <tr>
+                            <th style="width:60px">Find #</th>
+                            <th>Component *</th>
+                            <th style="width:90px">Qty *</th>
+                            <th style="width:80px">Scrap %</th>
+                            <th style="width:110px">Category</th>
+                            <th style="width:70px">Rev</th>
+                            <th style="width:90px">Status</th>
+                            <th style="width:80px">Eff. Date</th>
+                            <th>Ref. Des.</th>
+                            <th>Notes</th>
+                            <th style="width:40px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="newBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if lines %}
+    <div class="alert alert-warning py-2 small">
+        <i class="bi bi-exclamation-triangle"></i>
+        Rows with the <strong>Del</strong> checkbox ticked will be <strong>permanently removed</strong> when you save.
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between">
+        <a href="{{ url_for('bom_routes.list_boms') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-save"></i> Save BOM
+        </button>
+    </div>
+</form>
+
+<script>
+var newRowIndex = 0;
+var allProducts = {{ all_products | tojson }};
+
+function addRow() {
+    var idx = newRowIndex++;
+    document.getElementById('new_count').value = newRowIndex;
+    document.getElementById('newRowsCard').style.display = '';
+
+    var opts = allProducts.map(function(p) {
+        return '<option value="' + p.id + '">' + p.code + ' \u2014 ' + p.name + '</option>';
+    }).join('');
+
+    var row = document.createElement('tr');
+    row.id = 'newrow_' + idx;
+    row.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm" name="new_find_${idx}" style="width:55px" placeholder="Auto"></td>
+        <td>
+            <select class="form-select form-select-sm" name="new_child_${idx}" required>
+                <option value="">Select component…</option>
+                ${opts}
+            </select>
+        </td>
+        <td><input type="number" step="0.001" min="0.001" class="form-control form-control-sm" name="new_qty_${idx}" value="1" required style="width:80px"></td>
+        <td><input type="number" step="0.01" min="0" class="form-control form-control-sm" name="new_scrap_${idx}" value="0" style="width:70px"></td>
+        <td>
+            <select class="form-select form-select-sm" name="new_cat_${idx}">
+                <option value="Other">Other</option>
+                <option value="Electrical">Electrical</option>
+                <option value="Mechanical">Mechanical</option>
+                <option value="Hardware">Hardware</option>
+                <option value="Consumable">Consumable</option>
+                <option value="Subassembly">Subassembly</option>
+            </select>
+        </td>
+        <td><input type="text" class="form-control form-control-sm" name="new_rev_${idx}" value="A" style="width:55px"></td>
+        <td>
+            <select class="form-select form-select-sm" name="new_status_${idx}">
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Obsolete">Obsolete</option>
+            </select>
+        </td>
+        <td><input type="date" class="form-control form-control-sm" name="new_effdate_${idx}"></td>
+        <td><input type="text" class="form-control form-control-sm" name="new_refdes_${idx}" placeholder="R1…"></td>
+        <td><input type="text" class="form-control form-control-sm" name="new_notes_${idx}" placeholder="Notes"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeNewRow(${idx})"><i class="bi bi-x"></i></button></td>
+    `;
+    document.getElementById('newBody').appendChild(row);
+}
+
+function removeNewRow(idx) {
+    var row = document.getElementById('newrow_' + idx);
+    if (row) row.remove();
+    if (document.getElementById('newBody').children.length === 0) {
+        document.getElementById('newRowsCard').style.display = 'none';
+    }
+}
+
+function toggleDeleteRow(checkbox, rowId) {
+    var row = document.getElementById(rowId);
+    if (checkbox.checked) {
+        row.classList.add('table-danger', 'opacity-50');
+    } else {
+        row.classList.remove('table-danger', 'opacity-50');
+    }
+}
+</script>
+{% endblock %}

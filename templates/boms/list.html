@@ -92,6 +92,9 @@
                                     <i class="bi bi-diagram-3"></i>
                                 </a>
                                 {% if session.role in ['Admin', 'Planner'] %}
+                                <a href="{{ url_for('bom_routes.manage_bom', product_id=bom_group.parent_id) }}" class="btn btn-outline-warning" title="Edit Full BOM">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
                                 <a href="{{ url_for('bom_routes.create_bom', parent_id=bom_group.parent_id) }}" class="btn btn-outline-success" title="Add Component">
                                     <i class="bi bi-plus-circle"></i>
                                 </a>
