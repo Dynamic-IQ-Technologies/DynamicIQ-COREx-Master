@@ -5246,7 +5246,10 @@ class Database:
         
         if 'obligation_fulfilled_by_user' not in existing_columns:
             cursor.execute("ALTER TABLE purchase_orders ADD COLUMN obligation_fulfilled_by_user INTEGER")
-    
+
+        if 'component_buyout_flag' not in existing_columns:
+            cursor.execute("ALTER TABLE purchase_orders ADD COLUMN component_buyout_flag INTEGER DEFAULT 0")
+
     def _migrate_work_orders_stages(self, cursor):
         """Add stage_id column to work_orders table for tracking work order stages"""
         
@@ -5319,6 +5322,8 @@ class Database:
             ('cra_hazmat_handling',       'INTEGER DEFAULT 0'),
             ('ri_inspector_id',           'INTEGER'),
             ('ri_inspection_date',        'TIMESTAMP'),
+            ('component_buyout_flag',     'INTEGER DEFAULT 0'),
+            ('buyout_po_id',              'INTEGER'),
         ]
         for col_name, col_type in ri_cra_cols:
             if col_name not in existing_columns:
