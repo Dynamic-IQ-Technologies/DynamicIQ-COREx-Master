@@ -5363,7 +5363,9 @@ class Database:
                 except Exception:
                     pass
 
-        # Seed default stages if none exist
+        # Seed default stages only if the table is completely empty.
+        # Uses ON CONFLICT (name) DO NOTHING so re-runs are always safe and
+        # never touch or overwrite stages that already exist by name.
         cursor.execute("SELECT COUNT(*) as cnt FROM work_order_stages")
         _stages_cnt_row = cursor.fetchone()
         _stages_cnt = (_stages_cnt_row['cnt'] if isinstance(_stages_cnt_row, dict) else _stages_cnt_row[0]) if _stages_cnt_row else 0
@@ -5379,20 +5381,14 @@ class Database:
                 ('Ready to Ship', 'Completed and ready for shipping', '#28a745', 8)
             ]
             for name, desc, color, seq in default_stages:
-                cursor.execute('''
-                    INSERT INTO work_order_stages (name, description, color, sequence, is_active)
-                    VALUES (?, ?, ?, ?, 1)
-                ''', (name, desc, color, seq))
-        
-        cursor.execute("SELECT name FROM work_order_stages WHERE name = 'NDT'")
-        if not cursor.fetchone():
-            cursor.execute("SELECT MAX(sequence) as max_seq FROM work_order_stages")
-            _max_seq_row = cursor.fetchone()
-            max_seq = ((_max_seq_row['max_seq'] if isinstance(_max_seq_row, dict) else _max_seq_row[0]) if _max_seq_row else None) or 0
-            cursor.execute('''
-                INSERT INTO work_order_stages (name, description, color, sequence, is_active)
-                VALUES ('NDT', 'Non-Destructive Testing in progress', '#9c27b0', ?, 1)
-            ''', (max_seq + 1,))
+                try:
+                    cursor.execute('''
+                        INSERT INTO work_order_stages (name, description, color, sequence, is_active)
+                        VALUES (?, ?, ?, ?, 1)
+                        ON CONFLICT (name) DO NOTHING
+                    ''', (name, desc, color, seq))
+                except Exception:
+                    pass
     
     def _migrate_rfq_enhancements(self, cursor):
         """Add buyer contact and condition columns to RFQ tables for supplier portal"""
