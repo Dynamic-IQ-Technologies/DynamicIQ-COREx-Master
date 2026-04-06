@@ -5298,6 +5298,35 @@ class Database:
         if 'operational_status' not in existing_columns:
             cursor.execute("ALTER TABLE work_orders ADD COLUMN operational_status TEXT")
 
+        # Receiving Inspection (RI) and Crate Requirements Assessment (CRA) columns
+        ri_cra_cols = [
+            ('ri_document_tracing',       'TEXT'),
+            ('ri_part_identification',    'TEXT'),
+            ('ri_part_matching',          'TEXT'),
+            ('ri_traceability',           'TEXT'),
+            ('ri_verified_requirements',  'TEXT'),
+            ('ri_visual_damages',         'TEXT'),
+            ('ri_material_discrepancies', 'TEXT'),
+            ('ri_d100_requirements',      'TEXT'),
+            ('pkg_crate_requirement',     'TEXT'),
+            ('pkg_crate_dimensions',      'TEXT'),
+            ('cra_structural_integrity',  'INTEGER DEFAULT 0'),
+            ('cra_dimensional_fit',       'INTEGER DEFAULT 0'),
+            ('cra_protection_requirements','INTEGER DEFAULT 0'),
+            ('cra_storage_duration',      'INTEGER DEFAULT 0'),
+            ('cra_customer_oem_spec',     'INTEGER DEFAULT 0'),
+            ('cra_return_shipping',       'INTEGER DEFAULT 0'),
+            ('cra_hazmat_handling',       'INTEGER DEFAULT 0'),
+            ('ri_inspector_id',           'INTEGER'),
+            ('ri_inspection_date',        'TIMESTAMP'),
+        ]
+        for col_name, col_type in ri_cra_cols:
+            if col_name not in existing_columns:
+                try:
+                    cursor.execute(f'ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS {col_name} {col_type}')
+                except Exception:
+                    pass
+
         # Seed default stages if none exist
         cursor.execute("SELECT COUNT(*) as cnt FROM work_order_stages")
         _stages_cnt_row = cursor.fetchone()
