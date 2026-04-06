@@ -86,6 +86,27 @@
             letter-spacing: 0.04em;
         }
         .btn-clockin:hover { background: #15803d; color: #fff; }
+        .btn-select-emp {
+            background: #1d4ed8;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            padding: 13px;
+            width: 100%;
+            letter-spacing: 0.03em;
+        }
+        .btn-select-emp:hover { background: #1e40af; color: #fff; }
+        .btn-change-emp {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            padding: 5px 12px;
+        }
+        .btn-change-emp:hover { color: #f1f5f9; border-color: #64748b; }
         .form-select-dark, .form-control-dark {
             background: #0f172a;
             border: 1px solid #475569;
@@ -109,17 +130,16 @@
             color: #f8fafc;
             text-align: center;
         }
-        .no-emp-alert {
-            background: #7c2d12;
-            border: 1px solid #9a3412;
-            border-radius: 12px;
-            padding: 18px;
-            text-align: center;
-        }
         .alert-success-dark { background:#14532d; border:1px solid #166534; border-radius:8px; padding:12px 16px; color:#bbf7d0; margin-bottom:14px; }
         .alert-warning-dark { background:#713f12; border:1px solid #854d0e; border-radius:8px; padding:12px 16px; color:#fef08a; margin-bottom:14px; }
         .alert-danger-dark  { background:#450a0a; border:1px solid #7f1d1d; border-radius:8px; padding:12px 16px; color:#fca5a5; margin-bottom:14px; }
         .time-on-job { font-size:0.95rem; color:#86efac; margin-top:6px; }
+        .selector-prompt {
+            text-align: center;
+            padding: 8px 0 16px;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -146,26 +166,54 @@
         <div style="color:#94a3b8; font-size:0.85rem;" id="liveDate"></div>
     </div>
 
-    <!-- Employee Info -->
     {% if not employee %}
-    <div class="no-emp-alert">
-        <i class="bi bi-person-x" style="font-size:2rem;"></i>
-        <p class="mt-2 mb-1 fw-bold">No Employee Record Found</p>
-        <p class="mb-0" style="font-size:0.9rem;">Your account is not linked to an employee record. Ask your administrator to set up time tracking access.</p>
+    <!-- ── Step 1: Select employee ── -->
+    <div class="card-dark">
+        <h5><i class="bi bi-person-badge me-1"></i>Who are you?</h5>
+        <div class="selector-prompt">Select your name to clock in or out</div>
+        <form method="GET" action="">
+            <div class="mb-3">
+                <select name="employee_id" class="form-select-dark" required>
+                    <option value="">— Select your name —</option>
+                    {% for emp in all_employees %}
+                    <option value="{{ emp.id }}" {% if emp.id == selected_employee_id %}selected{% endif %}>
+                        {{ emp.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-select-emp">
+                <i class="bi bi-arrow-right-circle me-2"></i>Continue
+            </button>
+        </form>
+        {% if not all_employees %}
+        <div style="color:#ef4444; font-size:0.85rem; margin-top:12px; text-align:center;">
+            No active employees found. Ask your administrator to set up employee records.
+        </div>
+        {% endif %}
     </div>
 
     {% else %}
+    <!-- ── Step 2: Employee selected — show clock status ── -->
 
-    <!-- Employee status -->
+    <!-- Employee header -->
     <div class="card-dark">
-        <h5>Employee</h5>
-        <div class="employee-name">{{ employee.name }}</div>
-        <div class="mt-1">
-            {% if active_entry %}
-                <span class="status-dot dot-active"></span><span style="color:#4ade80;">Currently Clocked In</span>
-            {% else %}
-                <span class="status-dot dot-idle"></span><span style="color:#94a3b8;">Not Clocked In</span>
-            {% endif %}
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h5>Employee</h5>
+                <div class="employee-name">{{ employee.name }}</div>
+                <div class="mt-1">
+                    {% if active_entry %}
+                        <span class="status-dot dot-active"></span><span style="color:#4ade80;">Currently Clocked In</span>
+                    {% else %}
+                        <span class="status-dot dot-idle"></span><span style="color:#94a3b8;">Not Clocked In</span>
+                    {% endif %}
+                </div>
+            </div>
+            <a href="{{ url_for('time_tracking_routes.qr_clock_station', wo_id=workorder.id) }}"
+               class="btn-change-emp">
+                <i class="bi bi-arrow-left-short"></i>Change
+            </a>
         </div>
     </div>
 
@@ -195,6 +243,7 @@
 
         <form method="POST" action="{{ url_for('time_tracking_routes.qr_clock_out', entry_id=active_entry.id) }}">
             <input type="hidden" name="wo_id" value="{{ workorder.id }}">
+            <input type="hidden" name="employee_id" value="{{ employee.id }}">
             <div class="mb-3">
                 <label style="color:#86efac; font-size:0.8rem; text-transform:uppercase; letter-spacing:.06em;">Notes (optional)</label>
                 <textarea name="notes" class="form-control-dark mt-1" rows="2" placeholder="Any notes…"></textarea>
@@ -228,6 +277,7 @@
     <div class="card-dark">
         <h5>Clock In to <span style="color:#60a5fa;">{{ workorder.wo_number }}</span></h5>
         <form method="POST" action="{{ url_for('time_tracking_routes.qr_clock_in', wo_id=workorder.id) }}">
+            <input type="hidden" name="employee_id" value="{{ employee.id }}">
             <div class="mb-3">
                 <label style="color:#94a3b8; font-size:0.85rem; margin-bottom:6px; display:block;">Select Task <span style="color:#64748b;">(optional)</span></label>
                 <select name="task_id" class="form-select-dark">
@@ -256,8 +306,7 @@
     {% endif %}
 
     <div class="text-center mt-3 mb-4" style="color:#475569; font-size:0.78rem;">
-        Auto clock-out at 5:00 PM daily &nbsp;·&nbsp;
-        <a href="{{ url_for('time_tracking_routes.time_tracking_page') }}" style="color:#64748b;">Full Time Tracking</a>
+        Auto clock-out at 5:00 PM daily
     </div>
 </div>
 
