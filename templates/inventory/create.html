@@ -116,7 +116,11 @@
         </form>
         {% else %}
         <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle"></i> All products already have inventory records. No new inventory can be created at this time.
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>No products found.</strong> You must create at least one product before you can add inventory.
+            <a href="{{ url_for('product_routes.create_product') }}" class="btn btn-sm btn-primary ms-3">
+                <i class="bi bi-plus-circle"></i> Create a Product
+            </a>
         </div>
         <a href="{{ url_for('inventory_routes.list_inventory') }}" class="btn btn-secondary">Back to Inventory</a>
         {% endif %}
