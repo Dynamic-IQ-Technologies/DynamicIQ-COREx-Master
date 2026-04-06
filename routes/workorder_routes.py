@@ -2574,7 +2574,6 @@ def api_update_workorder_stage(id):
     
     db = Database()
     conn = db.get_connection()
-    
     try:
         if new_stage_id:
             new_stage_id = int(new_stage_id)
@@ -2605,12 +2604,15 @@ def api_update_workorder_stage(id):
                 ''', (id, new_stage_id, now, user_id))
         
         conn.commit()
-        conn.close()
-        
         return jsonify({'success': True})
     except Exception as e:
-        conn.close()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @workorder_bp.route('/api/workorders/mass-update', methods=['POST'])
@@ -2631,7 +2633,6 @@ def api_mass_update_workorders():
     
     db = Database()
     conn = db.get_connection()
-    
     try:
         updated_count = 0
         
@@ -2715,18 +2716,19 @@ def api_mass_update_workorders():
                 updated_count += 1
         
         conn.commit()
-        conn.close()
-        
         return jsonify({
             'success': True,
             'updated_count': updated_count,
             'message': f'Successfully updated {updated_count} work orders'
         })
-        
     except Exception as e:
-        conn.rollback()
-        conn.close()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 # Work Order Stages Management Routes
@@ -2736,16 +2738,19 @@ def list_stages():
     """List all work order stages"""
     db = Database()
     conn = db.get_connection()
-    
-    rows = conn.execute('''
-        SELECT wos.*, 
-               (SELECT COUNT(*) FROM work_orders WHERE stage_id = wos.id) as usage_count
-        FROM work_order_stages wos
-        ORDER BY wos.sequence, wos.name
-    ''').fetchall()
-    stages = [dict(r) for r in rows]
-    
-    conn.close()
+    try:
+        rows = conn.execute('''
+            SELECT wos.*, 
+                   (SELECT COUNT(*) FROM work_orders WHERE stage_id = wos.id) as usage_count
+            FROM work_order_stages wos
+            ORDER BY wos.sequence, wos.name
+        ''').fetchall()
+        stages = [dict(r) for r in rows]
+    except Exception as e:
+        stages = []
+        flash(f'Error loading stages: {str(e)}', 'error')
+    finally:
+        conn.close()
     return render_template('workorders/stages.html', stages=stages)
 
 
@@ -2757,7 +2762,6 @@ def create_stage():
     
     db = Database()
     conn = db.get_connection()
-    
     try:
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
@@ -2765,27 +2769,23 @@ def create_stage():
         
         if not name:
             flash('Stage name is required', 'error')
-            conn.close()
-            next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
-            return redirect(next_url)
-        
-        # Get next sequence number
-        max_seq = conn.execute('SELECT MAX(sequence) as max_seq FROM work_order_stages').fetchone()
-        sequence = (max_seq['max_seq'] or 0) + 1
-        
-        conn.execute('''
-            INSERT INTO work_order_stages (name, description, color, sequence, is_active)
-            VALUES (?, ?, ?, ?, 1)
-        ''', (name, description, color, sequence))
-        
-        conn.commit()
-        flash(f'Stage "{name}" created successfully', 'success')
-        
+        else:
+            max_seq = conn.execute('SELECT MAX(sequence) as max_seq FROM work_order_stages').fetchone()
+            sequence = (max_seq['max_seq'] or 0) + 1
+            conn.execute('''
+                INSERT INTO work_order_stages (name, description, color, sequence, is_active)
+                VALUES (?, ?, ?, ?, 1)
+            ''', (name, description, color, sequence))
+            conn.commit()
+            flash(f'Stage "{name}" created successfully', 'success')
     except Exception as e:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         flash(f'Error creating stage: {str(e)}', 'error')
-    
-    conn.close()
+    finally:
+        conn.close()
     next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
     return redirect(next_url)
 
@@ -2796,7 +2796,6 @@ def update_stage(id):
     """Update a work order stage"""
     db = Database()
     conn = db.get_connection()
-    
     try:
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
@@ -2806,23 +2805,22 @@ def update_stage(id):
         
         if not name:
             flash('Stage name is required', 'error')
-            conn.close()
-            return redirect(url_for('workorder_routes.list_stages'))
-        
-        conn.execute('''
-            UPDATE work_order_stages 
-            SET name = ?, description = ?, color = ?, sequence = ?, is_active = ?
-            WHERE id = ?
-        ''', (name, description, color, sequence, is_active, id))
-        
-        conn.commit()
-        flash(f'Stage "{name}" updated successfully', 'success')
-        
+        else:
+            conn.execute('''
+                UPDATE work_order_stages 
+                SET name = ?, description = ?, color = ?, sequence = ?, is_active = ?
+                WHERE id = ?
+            ''', (name, description, color, sequence, is_active, id))
+            conn.commit()
+            flash(f'Stage "{name}" updated successfully', 'success')
     except Exception as e:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         flash(f'Error updating stage: {str(e)}', 'error')
-    
-    conn.close()
+    finally:
+        conn.close()
     next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
     return redirect(next_url)
 
@@ -2833,11 +2831,8 @@ def delete_stage(id):
     """Delete a work order stage"""
     db = Database()
     conn = db.get_connection()
-    
     try:
-        # Check if stage is in use
         usage = conn.execute('SELECT COUNT(*) as count FROM work_orders WHERE stage_id = ?', (id,)).fetchone()
-        
         if usage['count'] > 0:
             flash(f'Cannot delete stage - it is used by {usage["count"]} work orders', 'error')
         else:
@@ -2845,12 +2840,14 @@ def delete_stage(id):
             conn.execute('DELETE FROM work_order_stages WHERE id = ?', (id,))
             conn.commit()
             flash(f'Stage "{stage["name"]}" deleted successfully', 'success')
-        
     except Exception as e:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         flash(f'Error deleting stage: {str(e)}', 'error')
-    
-    conn.close()
+    finally:
+        conn.close()
     next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
     return redirect(next_url)
 

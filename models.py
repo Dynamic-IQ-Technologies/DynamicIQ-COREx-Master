@@ -53,7 +53,7 @@ def _build_pool():
     # keepalives_count=3: declare connection dead after 3 missed probes
     return _pool.ThreadedConnectionPool(
         minconn=1,
-        maxconn=6,  # per-worker: handles 4 gthread request-threads + QB sync + 1 slack
+        maxconn=15,  # headroom for concurrent requests plus background tasks
         dsn=DATABASE_URL,
         keepalives=1,
         keepalives_idle=60,
