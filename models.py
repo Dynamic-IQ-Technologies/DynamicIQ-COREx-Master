@@ -4479,6 +4479,7 @@ class Database:
                 risk_score INTEGER DEFAULT 0,
                 risk_factors TEXT,
                 geo_location TEXT,
+                details TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
@@ -4723,7 +4724,13 @@ class Database:
                         pass
         except Exception:
             pass
-        
+
+        # Migrate it_access_audit – add details column if missing
+        try:
+            cursor.execute('ALTER TABLE it_access_audit ADD COLUMN IF NOT EXISTS details TEXT')
+        except Exception:
+            pass
+
         # Initialize QMS tables
         init_qms_tables(cursor)
         

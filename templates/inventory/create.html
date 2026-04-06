@@ -155,10 +155,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    isSerializedCheckbox.addEventListener('change', updateSerialNumberField);
-    productSelect.addEventListener('change', updateToolAssetField);
-    updateSerialNumberField();
-    updateToolAssetField();
+    if (isSerializedCheckbox) isSerializedCheckbox.addEventListener('change', updateSerialNumberField);
+    if (productSelect) productSelect.addEventListener('change', updateToolAssetField);
+    if (isSerializedCheckbox) updateSerialNumberField();
+    if (productSelect) updateToolAssetField();
 });
 </script>
 {% endblock %}
