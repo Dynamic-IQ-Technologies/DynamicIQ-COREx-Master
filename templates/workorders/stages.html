@@ -54,14 +54,12 @@
                                     onclick="editStage({{ loop.index0 }})">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            {% if stage.usage_count == 0 %}
-                            <form action="{{ url_for('workorder_routes.delete_stage', id=stage.id) }}" method="POST" class="d-inline" 
-                                  onsubmit="return confirm('Are you sure you want to delete this stage?')">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <form action="{{ url_for('workorder_routes.delete_stage', id=stage.id) }}" method="POST" class="d-inline"
+                                  onsubmit="return confirmDeleteStage('{{ stage.name | e }}', {{ stage.usage_count }})">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete stage">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </form>
-                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
@@ -163,6 +161,13 @@ function editStage(idx) {
     document.getElementById('editSequence').value = s.sequence;
     document.getElementById('editIsActive').checked = s.is_active == 1;
     new bootstrap.Modal(document.getElementById('editStageModal')).show();
+}
+
+function confirmDeleteStage(name, usageCount) {
+    if (usageCount > 0) {
+        return confirm('Delete stage "' + name + '"?\n\nThis stage is currently assigned to ' + usageCount + ' work order(s). Deleting it will remove the stage assignment from those work orders.\n\nAre you sure you want to continue?');
+    }
+    return confirm('Delete stage "' + name + '"? This cannot be undone.');
 }
 </script>
 {% endblock %}

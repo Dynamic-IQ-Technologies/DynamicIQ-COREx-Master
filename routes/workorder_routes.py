@@ -2828,18 +2828,25 @@ def update_stage(id):
 @workorder_bp.route('/workorders/stages/<int:id>/delete', methods=['POST'])
 @role_required('Admin')
 def delete_stage(id):
-    """Delete a work order stage"""
+    """Delete a work order stage, clearing assignments from any work orders first"""
     db = Database()
     conn = db.get_connection()
     try:
-        usage = conn.execute('SELECT COUNT(*) as count FROM work_orders WHERE stage_id = ?', (id,)).fetchone()
-        if usage['count'] > 0:
-            flash(f'Cannot delete stage - it is used by {usage["count"]} work orders', 'error')
+        stage = conn.execute('SELECT name FROM work_order_stages WHERE id = ?', (id,)).fetchone()
+        if not stage:
+            flash('Stage not found', 'error')
         else:
-            stage = conn.execute('SELECT name FROM work_order_stages WHERE id = ?', (id,)).fetchone()
+            stage_name = stage['name']
+            usage = conn.execute('SELECT COUNT(*) as count FROM work_orders WHERE stage_id = ?', (id,)).fetchone()
+            affected = usage['count'] if usage else 0
+            if affected > 0:
+                conn.execute('UPDATE work_orders SET stage_id = NULL WHERE stage_id = ?', (id,))
             conn.execute('DELETE FROM work_order_stages WHERE id = ?', (id,))
             conn.commit()
-            flash(f'Stage "{stage["name"]}" deleted successfully', 'success')
+            if affected > 0:
+                flash(f'Stage "{stage_name}" deleted. {affected} work order(s) had their stage assignment cleared.', 'success')
+            else:
+                flash(f'Stage "{stage_name}" deleted successfully', 'success')
     except Exception as e:
         try:
             conn.rollback()
