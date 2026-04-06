@@ -2765,6 +2765,7 @@ def create_stage():
         
         if not name:
             flash('Stage name is required', 'error')
+            conn.close()
             next_url = request.args.get('next') or url_for('workorder_routes.list_stages')
             return redirect(next_url)
         
@@ -2805,6 +2806,7 @@ def update_stage(id):
         
         if not name:
             flash('Stage name is required', 'error')
+            conn.close()
             return redirect(url_for('workorder_routes.list_stages'))
         
         conn.execute('''
