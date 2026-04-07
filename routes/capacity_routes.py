@@ -409,45 +409,51 @@ def edit_work_center(id):
 def delete_work_center(id):
     db = Database()
     conn = db.get_connection()
-    
+    redirect_url = url_for('capacity_routes.list_work_centers')
     try:
         operation_count = conn.execute('''
             SELECT COUNT(*) as count FROM work_order_operations 
             WHERE work_center_id = ? AND status IN ('Pending', 'In Progress')
         ''', (id,)).fetchone()['count']
-        
+
         if operation_count > 0:
-            flash(f'Cannot delete work center with {operation_count} active operations', 'danger')
-            conn.close()
-            return redirect(url_for('capacity_routes.view_work_center', id=id))
-        
-        work_center = conn.execute('SELECT code FROM work_centers WHERE id = ?', (id,)).fetchone()
-        
-        conn.execute('DELETE FROM work_center_resources WHERE work_center_id = ?', (id,))
-        conn.execute('DELETE FROM work_center_capacity WHERE work_center_id = ?', (id,))
-        conn.execute('DELETE FROM work_centers WHERE id = ?', (id,))
-        
-        AuditLogger.log_change(
-            conn=conn,
-            record_type='work_center',
-            record_id=id,
-            action_type='Deleted',
-            modified_by=session.get('user_id'),
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent')
-        )
-        
-        conn.commit()
-        conn.close()
-        
-        flash(f'Work Center {work_center["code"]} deleted successfully!', 'success')
-        return redirect(url_for('capacity_routes.list_work_centers'))
-        
+            flash(f'Cannot delete work center — it has {operation_count} active operation(s). Complete or reassign them first.', 'danger')
+            redirect_url = url_for('capacity_routes.view_work_center', id=id)
+        else:
+            work_center = conn.execute('SELECT code FROM work_centers WHERE id = ?', (id,)).fetchone()
+            if not work_center:
+                flash('Work center not found.', 'danger')
+            else:
+                conn.execute('DELETE FROM work_center_resources WHERE work_center_id = ?', (id,))
+                try:
+                    conn.execute('DELETE FROM work_center_capacity WHERE work_center_id = ?', (id,))
+                except Exception:
+                    pass
+                conn.execute('DELETE FROM work_centers WHERE id = ?', (id,))
+                try:
+                    AuditLogger.log_change(
+                        conn=conn,
+                        record_type='work_center',
+                        record_id=id,
+                        action_type='Deleted',
+                        modified_by=session.get('user_id'),
+                        ip_address=request.remote_addr,
+                        user_agent=request.headers.get('User-Agent')
+                    )
+                except Exception:
+                    pass
+                conn.commit()
+                flash(f'Work Center {work_center["code"]} deleted successfully!', 'success')
     except Exception as e:
-        conn.rollback()
-        conn.close()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         flash(f'Error deleting work center: {str(e)}', 'danger')
-        return redirect(url_for('capacity_routes.view_work_center', id=id))
+        redirect_url = url_for('capacity_routes.list_work_centers')
+    finally:
+        conn.close()
+    return redirect(redirect_url)
 
 
 @capacity_bp.route('/capacity/work-centers/<int:id>/resources', methods=['GET', 'POST'])

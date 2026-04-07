@@ -98,6 +98,12 @@
                                     <i class="bi bi-people"></i>
                                 </a>
                                 {% endif %}
+                                {% if session.role == 'Admin' %}
+                                <button type="button" class="btn btn-outline-danger" title="Delete"
+                                        onclick="openDeleteModal({{ wc.id }}, '{{ wc.name | e }}', '{{ wc.code | e }}', {{ wc.active_operations }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -118,11 +124,45 @@
     </div>
 </div>
 
+<div class="modal fade" id="deleteWcModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Delete Work Center</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteWcMsg" class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteWcForm" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger">Delete Work Center</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof TableUtils !== 'undefined') {
         TableUtils.initSortableTable('workCentersTable');
     }
 });
+
+function openDeleteModal(id, name, code, activeOps) {
+    var msg;
+    if (activeOps > 0) {
+        msg = 'Cannot delete work center "' + code + ' – ' + name + '" because it has ' + activeOps + ' active operation(s) assigned. Complete or reassign those operations first.';
+        document.querySelector('#deleteWcModal .btn-danger').disabled = true;
+    } else {
+        msg = 'Are you sure you want to delete work center "' + code + ' – ' + name + '"?\n\nThis will also remove all associated resources and capacity overrides. This cannot be undone.';
+        document.querySelector('#deleteWcModal .btn-danger').disabled = false;
+    }
+    document.getElementById('deleteWcMsg').textContent = msg;
+    document.getElementById('deleteWcForm').action = '/capacity/work-centers/' + id + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteWcModal')).show();
+}
 </script>
 {% endblock %}
