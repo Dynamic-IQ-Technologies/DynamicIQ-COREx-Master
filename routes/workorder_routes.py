@@ -1,3 +1,4 @@
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from models import Database, AuditLogger, safe_float
 from mrp_logic import MRPEngine
@@ -6,6 +7,7 @@ from datetime import datetime
 from routes.master_routing_routes import apply_routing_to_work_order
 
 workorder_bp = Blueprint('workorder_routes', __name__)
+logger = logging.getLogger(__name__)
 
 def generate_task_number_wo(conn):
     """Generate unique task number for work order tasks"""
@@ -1358,7 +1360,16 @@ def update_workorder_status(id):
                 flash(f'Work Order completed! Transferred ${total_wip_cost:,.2f} from WIP to Finished Goods.', 'success')
             else:
                 flash(f'Work Order status updated to {new_status}!', 'success')
-                
+
+            # Auto-generate Certificate of Compliance
+            try:
+                from services.coc_service import CoCService
+                coc_result = CoCService.generate_and_save(conn, id, session.get('user_id'))
+                if coc_result['success'] and coc_result['filename']:
+                    flash('Certificate of Compliance generated and saved to the Documents tab.', 'info')
+            except Exception as _coc_err:
+                logger.warning(f'CoC generation skipped for WO {id}: {_coc_err}')
+
         elif new_status == 'In Progress':
             conn.execute('UPDATE work_orders SET actual_start_date=CURRENT_DATE WHERE id=?', (id,))
             flash(f'Work Order status updated to {new_status}!', 'success')
@@ -1684,7 +1695,16 @@ def update_workorder_management(id):
                     lines=gl_lines,
                     created_by=session.get('user_id')
                 )
-        
+
+            # Auto-generate Certificate of Compliance
+            try:
+                from services.coc_service import CoCService
+                coc_result = CoCService.generate_and_save(conn, id, session.get('user_id'))
+                if coc_result['success'] and coc_result['filename']:
+                    flash('Certificate of Compliance generated and saved to the Documents tab.', 'info')
+            except Exception as _coc_err:
+                logger.warning(f'CoC generation skipped for WO {id}: {_coc_err}')
+
         new_record = conn.execute('SELECT * FROM work_orders WHERE id=?', (id,)).fetchone()
         changes = AuditLogger.compare_records(dict(old_record), dict(new_record))
         if changes:
