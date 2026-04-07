@@ -652,8 +652,9 @@ class PostgresConnection:
         from psycopg2.extras import RealDictCursor as RDC
         
         # Auto-recover from aborted transaction state
+        # psycopg2: TRANSACTION_STATUS_INERROR = 3, TRANSACTION_STATUS_UNKNOWN = 4
         try:
-            if self._conn.info.transaction_status == 4:  # TRANSACTION_STATUS_INERROR
+            if self._conn.info.transaction_status in (3, 4):  # INERROR or UNKNOWN
                 self._conn.rollback()
         except:
             try:

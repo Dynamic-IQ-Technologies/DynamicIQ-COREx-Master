@@ -44,12 +44,19 @@ class CoCService:
     def _get_tasks(conn, work_order_id):
         try:
             return conn.execute('''
-                SELECT name, status, description, actual_hours
+                SELECT task_name AS name,
+                       status,
+                       remarks    AS description,
+                       actual_hours
                 FROM work_order_tasks
                 WHERE work_order_id = ?
-                ORDER BY sequence, id
+                ORDER BY sequence_number, id
             ''', (work_order_id,)).fetchall()
         except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             return []
 
     @staticmethod
@@ -63,6 +70,10 @@ class CoCService:
             ''', (work_order_id,)).fetchone()
             return row is not None
         except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             return False
 
     @staticmethod
