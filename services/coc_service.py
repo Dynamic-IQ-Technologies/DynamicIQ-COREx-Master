@@ -77,7 +77,7 @@ class CoCService:
             return False
 
     @staticmethod
-    def _build_pdf(wo, tasks, filepath):
+    def _build_pdf(wo, filepath):
         """Build the PDF and write it to filepath. Returns file size in bytes."""
         styles = getSampleStyleSheet()
 
@@ -225,40 +225,6 @@ class CoCService:
 
         story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#b0c4d8'), spaceAfter=8))
 
-        if tasks:
-            story.append(Paragraph('WORK PERFORMED', ParagraphStyle(
-                'SectionHeader', parent=styles['Normal'], fontSize=9, fontName='Helvetica-Bold',
-                textColor=colors.HexColor('#1a3c5e'), spaceAfter=4
-            )))
-            task_rows = [[
-                Paragraph('TASK', label_style),
-                Paragraph('DESCRIPTION', label_style),
-                Paragraph('STATUS', label_style),
-                Paragraph('ACTUAL HRS', label_style),
-            ]]
-            for t in tasks:
-                status_text = t.get('status') or 'Completed'
-                hrs = t.get('actual_hours')
-                hrs_text = f"{float(hrs):.1f}" if hrs else '—'
-                task_rows.append([
-                    Paragraph(t.get('name') or '', value_style),
-                    Paragraph(t.get('description') or '', value_style),
-                    Paragraph(status_text, value_style),
-                    Paragraph(hrs_text, value_style),
-                ])
-            task_table = Table(task_rows, colWidths=[1.8 * inch, 3.2 * inch, 1.0 * inch, 1.0 * inch])
-            task_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#eef3f8')),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f7fafc')]),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-                ('TOPPADDING', (0, 0), (-1, -1), 3),
-                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#b0c4d8')),
-                ('INNERGRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#b0c4d8')),
-            ]))
-            story.append(task_table)
-            story.append(Spacer(1, 10))
-
         if notes:
             story.append(Paragraph('NOTES / REMARKS', ParagraphStyle(
                 'SectionHeader', parent=styles['Normal'], fontSize=9, fontName='Helvetica-Bold',
@@ -353,7 +319,6 @@ class CoCService:
                 return {'success': False, 'filename': None, 'message': 'Work order not found.'}
 
             wo = dict(wo)
-            tasks = CoCService._get_tasks(conn, work_order_id)
 
             wo_number = wo.get('wo_number') or str(work_order_id)
             upload_dir = os.path.join(UPLOAD_BASE, str(work_order_id))
@@ -363,7 +328,7 @@ class CoCService:
             filename = f"CoC-{safe_wo_num}.pdf"
             filepath = os.path.join(upload_dir, filename)
 
-            file_size = CoCService._build_pdf(wo, tasks, filepath)
+            file_size = CoCService._build_pdf(wo, filepath)
 
             conn.execute('''
                 INSERT INTO work_order_documents
