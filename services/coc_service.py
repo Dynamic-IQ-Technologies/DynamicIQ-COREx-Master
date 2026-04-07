@@ -319,16 +319,23 @@ class CoCService:
         return os.path.getsize(filepath)
 
     @staticmethod
-    def generate_and_save(conn, work_order_id, created_by_user_id=None):
+    def generate_and_save(conn, work_order_id, created_by_user_id=None, force=False):
         """
         Generate the CoC PDF and record it in work_order_documents.
         Safe to call in a transaction — does NOT commit.
+        If force=True, deletes any existing CoC record and regenerates.
         Returns dict with 'success', 'filename', 'message'.
         """
         try:
             if CoCService._already_exists(conn, work_order_id):
-                return {'success': True, 'filename': None,
-                        'message': 'Certificate of Compliance already exists for this work order.'}
+                if not force:
+                    return {'success': True, 'filename': None,
+                            'message': 'Certificate of Compliance already exists for this work order.'}
+                # Remove old DB records so a fresh one is created
+                conn.execute('''
+                    DELETE FROM work_order_documents
+                    WHERE work_order_id = ? AND document_type = 'Certificate of Compliance'
+                ''', (work_order_id,))
 
             wo = CoCService._get_wo_data(conn, work_order_id)
             if not wo:

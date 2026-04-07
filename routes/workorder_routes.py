@@ -3191,6 +3191,35 @@ def turn_into_stock(id):
     return redirect(url_for('workorder_routes.view_workorder', id=id))
 
 
+@workorder_bp.route('/workorders/<int:id>/generate-coc', methods=['POST'])
+@role_required('Admin', 'Planner', 'Production Staff')
+def generate_coc(id):
+    """Manually generate (or regenerate) a Certificate of Compliance for a work order."""
+    db = Database()
+    conn = db.get_connection()
+    try:
+        from services.coc_service import CoCService
+        force = request.form.get('force', '0') == '1'
+        result = CoCService.generate_and_save(conn, id, created_by_user_id=session.get('user_id'), force=force)
+        conn.commit()
+        if result['success']:
+            if result['filename']:
+                flash('Certificate of Compliance generated successfully and saved to the Documents tab.', 'success')
+            else:
+                flash(result['message'], 'info')
+        else:
+            flash(f'Could not generate Certificate of Compliance: {result["message"]}', 'danger')
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        flash(f'Error generating Certificate of Compliance: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('workorder_routes.view_workorder', id=id) + '#docsPane')
+
+
 @workorder_bp.route('/workorders/<int:id>/generate-8130', methods=['GET', 'POST'])
 @role_required('Admin', 'Planner', 'Production Staff')
 def generate_8130(id):

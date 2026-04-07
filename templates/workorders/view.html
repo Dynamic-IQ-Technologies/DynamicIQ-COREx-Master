@@ -148,6 +148,24 @@
                 {% endif %}
                 <a href="{{ url_for('workorder_routes.generate_8130', id=workorder.id) }}" class="btn btn-warning btn-sm"><i class="bi bi-file-earmark-medical"></i> 8130</a>
             {% endif %}
+            {% if session.role in ['Admin', 'Planner', 'Production Staff'] %}
+                {% set has_coc = documents and (documents | selectattr('document_type', 'equalto', 'Certificate of Compliance') | list | length > 0) %}
+                {% if has_coc %}
+                <form method="POST" action="{{ url_for('workorder_routes.generate_coc', id=workorder.id) }}" class="d-inline">
+                    <input type="hidden" name="force" value="1">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm" title="Regenerate Certificate of Compliance">
+                        <i class="bi bi-arrow-clockwise"></i> Regenerate C of C
+                    </button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('workorder_routes.generate_coc', id=workorder.id) }}" class="d-inline">
+                    <input type="hidden" name="force" value="0">
+                    <button type="submit" class="btn btn-outline-dark btn-sm" title="Generate Certificate of Compliance">
+                        <i class="bi bi-file-earmark-check"></i> Generate C of C
+                    </button>
+                </form>
+                {% endif %}
+            {% endif %}
             {% if session.role in ['Admin', 'Planner', 'Production Staff'] and workorder.status != 'Completed' %}
             <a href="{{ url_for('workorder_routes.edit_workorder', id=workorder.id) }}" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i> Edit</a>
             {% endif %}
